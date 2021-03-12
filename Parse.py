@@ -41,10 +41,10 @@ for item in vacancy_card:
     date = item.find('div', class_='vacancy-card__date').find('time', class_='basic-date').text
     icon_link = item.find('a', class_='vacancy-card__icon-link').find('img', 'vacancy-card__icon').get('src')
     salary = item.find('div', class_='basic-salary').text
-    skills = item.find('div', class_='vacancy-card__skills').find_all('span', 'preserve-line')
-    for element in skills:
-        skill = element.find('a', class_='link-comp link-comp--appearance-dark').text
-        skills.append(skill)
+    # skills = item.find('div', class_='vacancy-card__skills').find_all('span', 'preserve-line')
+    # for element in skills:
+    #     skill = element.find('a', class_='link-comp link-comp--appearance-dark').text
+    #     skills.append(skill)
     # vacancy_skills = []
     # for skill in skills:
     #     vacancy_skill = skill.find('href')
@@ -56,7 +56,7 @@ for item in vacancy_card:
     print(date)
     print(icon_link)
     print(salary)
-    print(skills)
+    # print(skills)
     # print(vacancy_skills)
     print('______________')
     with open('vacancies.csv', 'a', encoding='utf-8') as file:
