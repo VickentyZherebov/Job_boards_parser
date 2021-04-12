@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 import csv
 import requests
 import datetime
-import re
+from SalaryRegexp import salary_re_max, salary_re_min, salary_re_cur
 
 url = 'https://career.habr.com/vacancies'
 
@@ -51,103 +51,9 @@ if isinstance(no_content_title, type(None)):
             date = data.find('div', class_='vacancy-card__date').find('time', class_='basic-date').text.strip()
             icon_link = data.find('a', class_='vacancy-card__icon-link').find('img', 'vacancy-card__icon').get('src')
             salary = data.find('div', class_='basic-salary').text
-            low_salary = ''
-            high_salary = ''
-            currency = ''
-            if re.search('от', salary):  # проверяем в зепке наличие слова "от "
-                first_split = re.split('от ', salary)  # чистим строку от слова "от "
-                if re.search('до', first_split[1]):  # проверяем в цене наличие слова "До ", если есть, то:
-                    second_split = re.split(' до ', first_split[1])  # отрезаем слово "До "
-                    if re.search('₽', second_split[1]):  # Если находим символ рубля, то:
-                        currency = 'rub'
-                        low_salary = second_split[0].replace(' ', '')
-                        high_salary = re.split(' ₽', second_split[1])[0].replace(' ', '')
-                        print(f'Нижнее значение вилки равно {low_salary}')
-                        print(f'Верхнее значение вилки равно {high_salary}')
-                        print(f'Валюта зепки равна {currency}')
-                        print('__________________________________________________')
-                    else:
-                        if re.search('\\$', second_split[1]):  # Если находим символ рубля, то:
-                            currency = 'usd'
-                            low_salary = second_split[0].replace(' ', '')
-                            high_salary = re.split(' \\$', second_split[1])[0].replace(' ', '')
-                            print(f'Нижнее значение вилки равно {low_salary}')
-                            print(f'Верхнее значение вилки равно {high_salary}')
-                            print(f'Валюта зепки равна {currency}')
-                            print('__________________________________________________')
-                        else:
-                            if re.search('€', second_split[1]):  # Если находим символ евро, то:
-                                currency = 'eur'
-                                low_salary = second_split[0].replace(' ', '')
-                                high_salary = re.split(' €', second_split[1])[1].replace(' ', '')
-                                print(f'Нижнее значение вилки равно {low_salary}')
-                                print(f'Верхнее значение вилки равно {high_salary}')
-                                print(f'Валюта зепки равна {currency}')
-                                print('__________________________________________________')
-                            else:
-                                print('Какой-то баг - не прошел проверку на рубли, евро и баксы')
-                                print('_____________________________________________')
-                else:
-                    if re.search('₽', first_split[1]):
-                        currency = 'rub'
-                        low_salary = re.split(' ₽', first_split[1])[0].replace(' ', '')
-                        print(f'Нижнее значение вилки равно {low_salary}')
-                        print(f'Верхнее значение вилки не указано')
-                        print(f'Валюта зепки равна {currency}')
-                        print('__________________________________________________')
-                    else:
-                        if re.search('\\$', first_split[1]):
-                            currency = 'usd'
-                            low_salary = re.split(' \\$', first_split[1])[0].replace(' ', '')
-                            print(f'Нижнее значение вилки равно {low_salary}')
-                            print(f'Верхнее значение вилки не указано')
-                            print(f'Валюта зепки равна {currency}')
-                            print('__________________________________________________')
-                        else:
-                            if re.search('€', first_split[1]):
-                                currency = 'eur'
-                                low_salary = re.split(' €', first_split[1])[0].replace(' ', '')
-                                print(f'Нижнее значение вилки равно {low_salary}')
-                                print(f'Верхнее значение вилки не указано')
-                                print(f'Валюта зепки равна {currency}')
-                                print('__________________________________________________')
-                            else:
-                                print('Какой-то баг - не прошел проверку на рубли, евро и баксы')
-            else:
-                if re.search('До ', salary):
-                    first_split = re.split('До ', salary)
-                    if re.search('₽', first_split[1]):
-                        low_salary = 'не указано'
-                        currency = 'rub'
-                        high_salary = re.split(' ₽', first_split[1])[0].replace(' ', '')
-                        print(f'Нижнее значение вилки равно {low_salary}')
-                        print(f'Верхнее значение вилки равно {high_salary}')
-                        print(f'Валюта зепки равна {currency}')
-                        print('__________________________________________________')
-                    else:
-                        if re.search('\\$', first_split[1]):
-                            low_salary = 'не указано'
-                            currency = 'usd'
-                            high_salary = re.split(' \\$', first_split[1])[0].replace(' ', '')
-                            print(f'Нижнее значение вилки равно {low_salary}')
-                            print(f'Верхнее значение вилки равно {high_salary}')
-                            print(f'Валюта зепки равна {currency}')
-                            print('__________________________________________________')
-                        else:
-                            if re.search('€', first_split[1]):
-                                low_salary = 'не указано'
-                                currency = 'usd'
-                                high_salary = re.split(' €', first_split[1])[0].replace(' ', '')
-                                print(f'Нижнее значение вилки равно {low_salary}')
-                                print(f'Верхнее значение вилки равно {high_salary}')
-                                print(f'Валюта зепки равна {currency}')
-                                print('__________________________________________________')
-                else:
-                    low_salary = 'нет значения'
-                    high_salary = 'нет значения'
-                    print(f'Нижнее значение вилки равно {low_salary}')
-                    print(f'Верхнее значение вилки равно {high_salary}')
-                    print('__________________________________________________')
+            low_salary = salary_re_min(salary)
+            high_salary = salary_re_max(salary)
+            currency = salary_re_cur(salary)
             skills_all = []
             skills_max_value = 0
             skill_elements = data.find('div', class_='vacancy-card__skills').find_all('span', 'preserve-line')
