@@ -2,9 +2,8 @@ import csv
 import os
 import platform
 import subprocess
-import requests
 from bs4 import BeautifulSoup
-from ParsePagesCount import find_number_of_search_pages
+from ParsePagesCount import find_number_of_search_pages, get_data_by_search_page
 from SalaryRegexp import salary_re_max, salary_re_min, salary_re_cur
 from timevars import dmyhms
 from selenium import webdriver
@@ -19,24 +18,16 @@ page_number = 1
 question = 'Senior'
 remote = 'true'
 request_type = 'all'
-salary = '380000'
+salary_price = '300000'
 with_salary = "true"
-
 dmy = dmyhms()[0]
 hms = dmyhms()[1]
-headers = {
-    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_3) AppleWebKit/537.36 (KHTML, like Gecko) '
-                  'Chrome/89.0.4389.128 Safari/537.36',
-    'accept': '*/*'}
 host = 'https://career.habr.com'
-
-req = requests.get(url + f'?page={page_number}&q={question}&remote={remote}&type={request_type}', headers=headers)
-src = req.text
 csv_name = f"vacancies_{dmy}_{hms}.csv"
 if not os.path.exists(f'{dmy}'):
     os.mkdir(f'{dmy}')
 
-with open(f'{dmy}/{csv_name}', 'w', encoding='utf-8') as file:
+with open(f'{dmy}/{csv_name}', 'w', encoding='utf-8') as file:  # Создаем csv файл со столбцами
     writer = csv.writer(file)
     writer.writerow(["Название вакансии",
                      'Название компании',
@@ -48,21 +39,19 @@ with open(f'{dmy}/{csv_name}', 'w', encoding='utf-8') as file:
                      'Верхнее значение вилки',
                      'Валюта'])
 
-soup = BeautifulSoup(src, 'lxml')
-vacancy_card = soup.find_all(class_='vacancy-card')
-no_content_title = soup.find(class_='no-content__title')
-
-number_of_search_pages = find_number_of_search_pages(self=None, pn=page_number, q=question, r=remote, u=url, s=salary,
-                                                     ws=with_salary)
-
+number_of_search_pages = find_number_of_search_pages(self=None, pn=page_number, q=question, r=remote, u=url,
+                                                     s=salary_price, ws=with_salary)
 for item in range(1, number_of_search_pages + 1):
     print(f'Парсим страницу выдачи с номером {page_number}')
     print('__________________________________________________')
-    browser.get(url + f'?page={page_number}&q={question}&remote={remote}&salary={salary}&type={request_type}'
+    browser.get(url + f'?page={page_number}&q={question}&remote={remote}&salary={salary_price}&type={request_type}'
                       f'&with_salary={with_salary}')
     print('Анализирую HTML код')
     required_html = browser.page_source
     soup = BeautifulSoup(required_html, 'html5lib')
+    html_name = f"html_{page_number}_{dmy}_{hms}.html"
+    html_file = open(f'{dmy}/{html_name}', 'w')
+    html_file.write(f'{soup}')
     vacancy_card = soup.find_all(class_='vacancy-card')
     no_content_title = soup.find(class_='no-content__title')
     for data in vacancy_card:
@@ -88,7 +77,9 @@ for item in range(1, number_of_search_pages + 1):
             writer = csv.writer(file)
             writer.writerow([title, company_title, company_link, title_link, date, icon_link, low_salary,
                              high_salary, currency])
-    print(f'закончил парсить страницу с номером = {page_number}')
+    print(f'закончил парсить страницу с номером = {page_number} '
+          f'{url}?page={page_number}&q={question}&remote={remote}&salary={salary_price}&type={request_type}'
+          f'&with_salary={with_salary}')
     print('____________________________________________________')
     page_number = page_number + 1
 
