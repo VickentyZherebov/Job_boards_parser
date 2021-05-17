@@ -3,22 +3,24 @@ import os
 import platform
 import subprocess
 from bs4 import BeautifulSoup
-from ParsePagesCount import find_number_of_search_pages, get_data_by_search_page
+from ParsePagesCount import find_number_of_search_pages
+# ,get_data_by_search_page
 from SalaryRegexp import salary_re_max, salary_re_min, salary_re_cur
 from timevars import dmyhms
 from selenium import webdriver
 
-chromedriver = '/Users/vikentijzerebov/Downloads/chromedriver'
+chromedriver = '/Users/vikentijzerebov/PycharmProjects/PyParserHabr/chromedriver'  # если у тебя не мак а винда -
+# надо скачать актуальный хромдрайвер и закинуть в папку с проектом
 options = webdriver.ChromeOptions()
 options.add_argument('headless')  # для открытия headless-браузера
 browser = webdriver.Chrome(chromedriver, options=options)
 
 url = 'https://career.habr.com/vacancies'
 page_number = 1
-question = 'Senior'
+question = ''
 remote = 'true'
 request_type = 'all'
-salary_price = '300000'
+salary_price = '350000'
 with_salary = "true"
 dmy = dmyhms()[0]
 hms = dmyhms()[1]
@@ -27,7 +29,7 @@ csv_name = f"vacancies_{dmy}_{hms}.csv"
 if not os.path.exists(f'{dmy}'):
     os.mkdir(f'{dmy}')
 
-with open(f'{dmy}/{csv_name}', 'w', encoding='utf-8') as file:  # Создаем csv файл со столбцами
+with open(f'{dmy}/{csv_name}', 'w', encoding='utf-8', newline='') as file:  # Создаем csv файл со столбцами
     writer = csv.writer(file)
     writer.writerow(["Название вакансии",
                      'Название компании',
@@ -73,7 +75,7 @@ for item in range(1, number_of_search_pages + 1):
             skills_all.append(skill_element)
             if skills_max_value < len(skills_all):
                 skills_max_value = len(skill_element)
-        with open(f'{dmy}/vacancies_{dmy}_{hms}.csv', 'a', encoding='utf-8') as file:
+        with open(f'{dmy}/vacancies_{dmy}_{hms}.csv', 'a', encoding='utf-8', newline='') as file:
             writer = csv.writer(file)
             writer.writerow([title, company_title, company_link, title_link, date, icon_link, low_salary,
                              high_salary, currency])
@@ -82,6 +84,8 @@ for item in range(1, number_of_search_pages + 1):
           f'&with_salary={with_salary}')
     print('____________________________________________________')
     page_number = page_number + 1
+browser.close()
+browser.quit()
 
 if platform.system() == 'Darwin':       # macOS
     subprocess.call(('open', f'{dmy}/{csv_name}'))
