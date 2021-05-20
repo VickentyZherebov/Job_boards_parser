@@ -4,10 +4,10 @@ import platform
 import subprocess
 from bs4 import BeautifulSoup
 from ParsePagesCount import find_number_of_search_pages
-# ,get_data_by_search_page
 from SalaryRegexp import salary_re_max, salary_re_min, salary_re_cur
 from timevars import dmyhms
 from selenium import webdriver
+from GSheetsConnect import WriteVacansyTitle
 
 chromedriver = '/Users/vikentijzerebov/PycharmProjects/PyParserHabr/chromedriver'  # если у тебя не мак а винда -
 # надо скачать актуальный хромдрайвер и закинуть в папку с проектом
@@ -20,16 +20,17 @@ page_number = 1
 question = ''
 remote = 'true'
 request_type = 'all'
-salary_price = '350000'
+salary_price = '320000'
 with_salary = "true"
 dmy = dmyhms()[0]
 hms = dmyhms()[1]
 host = 'https://career.habr.com'
 csv_name = f"vacancies_{dmy}_{hms}.csv"
-if not os.path.exists(f'{dmy}'):
-    os.mkdir(f'{dmy}')
+if not os.path.exists(f'ScrappedData/{dmy}'):
+    os.mkdir(f'ScrappedData/{dmy}')
 
-with open(f'{dmy}/{csv_name}', 'w', encoding='utf-8', newline='') as file:  # Создаем csv файл со столбцами
+
+with open(f'ScrappedData/{dmy}/{csv_name}', 'w', encoding='utf-8', newline='') as file:  # Создаем csv файл со столбцами
     writer = csv.writer(file)
     writer.writerow(["Название вакансии",
                      'Название компании',
@@ -52,12 +53,12 @@ for item in range(1, number_of_search_pages + 1):
     required_html = browser.page_source
     soup = BeautifulSoup(required_html, 'html5lib')
     html_name = f"html_{page_number}_{dmy}_{hms}.html"
-    html_file = open(f'{dmy}/{html_name}', 'w')
+    html_file = open(f'ScrappedData/{dmy}/{html_name}', 'w')
     html_file.write(f'{soup}')
     vacancy_card = soup.find_all(class_='vacancy-card')
     no_content_title = soup.find(class_='no-content__title')
     for data in vacancy_card:
-        title = data.find('a', class_='vacancy-card__title-link').text
+        vacancy_title = data.find('a', class_='vacancy-card__title-link').text
         company_title = data.find('a', class_='link-comp link-comp--appearance-dark').text
         company_link = host + data.find('a', class_='link-comp link-comp--appearance-dark').get('href')
         title_link = host + data.find('a', class_='vacancy-card__title-link').get('href')
@@ -75,10 +76,11 @@ for item in range(1, number_of_search_pages + 1):
             skills_all.append(skill_element)
             if skills_max_value < len(skills_all):
                 skills_max_value = len(skill_element)
-        with open(f'{dmy}/vacancies_{dmy}_{hms}.csv', 'a', encoding='utf-8', newline='') as file:
+        with open(f'ScrappedData/{dmy}/vacancies_{dmy}_{hms}.csv', 'a', encoding='utf-8', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([title, company_title, company_link, title_link, date, icon_link, low_salary,
+            writer.writerow([vacancy_title, company_title, company_link, title_link, date, icon_link, low_salary,
                              high_salary, currency])
+        WriteVacansyTitle(vacancy_title, company_title, company_link, title_link, date, icon_link, low_salary, high_salary, currency)
     print(f'закончил парсить страницу с номером = {page_number} '
           f'{url}?page={page_number}&q={question}&remote={remote}&salary={salary_price}&type={request_type}'
           f'&with_salary={with_salary}')
@@ -88,7 +90,7 @@ browser.close()
 browser.quit()
 
 if platform.system() == 'Darwin':       # macOS
-    subprocess.call(('open', f'{dmy}/{csv_name}'))
+    subprocess.call(('open', f'ScrappedData/{dmy}/{csv_name}'))
 elif platform.system() == 'Windows':    # Windows
     os.startfile(f'{dmy}/{csv_name}')
 else:                                   # linux variants
