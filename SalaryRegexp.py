@@ -8,13 +8,13 @@ def find_lower_salary_value(salary):
         if re.search('до', first_split[1]):  # проверяем в цене наличие слова "До ", если есть, то:
             second_split = re.split(' до ', first_split[1])  # отрезаем слово "До "
             if re.search('₽', second_split[1]):  # Если находим символ рубля, то:
-                low_salary = second_split[0].replace(' ', '')
+                low_salary = second_split[0].replace(' ', '')  # убиваем пробелы
             else:
-                if re.search('\\$', second_split[1]):  # Если находим символ рубля, то:
-                    low_salary = second_split[0].replace(' ', '')
+                if re.search('\\$', second_split[1]):  # Если находим символ доллара, то:
+                    low_salary = second_split[0].replace(' ', '')  # убиваем пробелы
                 else:
                     if re.search('€', second_split[1]):  # Если находим символ евро, то:
-                        low_salary = second_split[0].replace(' ', '')
+                        low_salary = second_split[0].replace(' ', '')  # убиваем пробелы
                     else:
                         print('Какой-то баг - не прошел проверку на рубли, евро и баксы')
                         print('_____________________________________________')

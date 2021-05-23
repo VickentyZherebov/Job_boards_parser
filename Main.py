@@ -8,5 +8,5 @@ nosp = find_number_of_search_pages()
 
 make_csv_file()
 vacancy_cards = collecting_vacancies_data(day_month_year=dmy, hour_minute_second=hms, number_of_search_pages=nosp)
-parse_vacancies_data(vacancy_data=vacancy_cards)
+parse_vacancies_data(vacancy_cards=vacancy_cards)
 open_csv_file()

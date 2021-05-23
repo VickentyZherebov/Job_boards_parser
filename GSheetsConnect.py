@@ -10,7 +10,6 @@ def write_vacancy_data_2_google_sheet(vacancy_title, company_title, company_link
     gc = pygsheets.authorize(client_secret=client_secret)
     sh = gc.open_by_key(spread_sheet_key)
     work_sheet_data_base = sh[0]
-    # last_row_number = work_sheet_data_base.rows
     list_of_matches = work_sheet_data_base.find(vacancy_title_link, matchEntireCell=True)
     if list_of_matches:
         print(f"Найден дубликат - {list_of_matches}")
