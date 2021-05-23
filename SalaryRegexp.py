@@ -1,7 +1,7 @@
 import re
 
 
-def salary_re_min(salary):
+def find_lower_salary_value(salary):
     low_salary = ''
     if re.search('от', salary):  # проверяем в зепке наличие слова "от "
         first_split = re.split('от ', salary)  # чистим строку от слова "от "
@@ -46,7 +46,7 @@ def salary_re_min(salary):
     return low_salary
 
 
-def salary_re_max(salary):
+def find_high_salary_value(salary):
     high_salary = ''
     if re.search('от', salary):  # проверяем в зепке наличие слова "от "
         first_split = re.split('от ', salary)  # чистим строку от слова "от "
@@ -91,7 +91,7 @@ def salary_re_max(salary):
     return high_salary
 
 
-def salary_re_cur(salary):
+def find_salary_currency(salary):
     if re.search('₽', salary):
         currency = 'rub'
     else:
