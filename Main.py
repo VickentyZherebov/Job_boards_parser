@@ -3,8 +3,8 @@ from ParsePages import HabrClient
 # from WorkWithCSV import make_csv_file, open_csv_file
 
 habr_client = HabrClient
-number_of_pages = habr_client.load_vacancies(self=HabrClient)
-print(len(number_of_pages))
+number_of_pages = habr_client.get_page(1).find_number_of_search_pages()
+print(number_of_pages)
 # now = get_now()
 # habr_client = HabrClient()
 # number_of_pages = habr_client.get_page(1).find_number_of_search_pages()
