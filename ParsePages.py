@@ -1,115 +1,267 @@
+import json
+
 from bs4 import BeautifulSoup
 from selenium import webdriver
 import re
 import math
-from GSheetsConnect import write_vacancy_data_2_google_sheet
-from WorkWithCSV import write_vacancies_2_csv_file
-from SalaryRegexp import find_high_salary_value, find_lower_salary_value, find_salary_currency
+# from GSheetsConnect import write_vacancy_data_2_google_sheet
+# from WorkWithCSV import write_vacancies_2_csv_file
 
 chromedriver = 'selenium_files/chromedriver'
 options = webdriver.ChromeOptions()
 options.add_argument('headless')  # для открытия headless-браузера
 browser = webdriver.Chrome(chromedriver, options=options)
 
-url = 'https://career.habr.com/vacancies'
-question = ''
-remote = 'true'
-request_type = 'all'
-salary_price = '350000'
-with_salary = "true"
-page_number = 1
-qid = 5  # 1 - любая, 2 - intern, 3 - junior, 4 - middle, 5 - senior, 6 - lead
-vacancy_card = []
-host = 'https://career.habr.com'
+
+class SearchRequestLink:
+    def __init__(self, question, remote, salary, type, with_salary, qid, sort, divisions, page_number: int):
+        """
+        :param question: поисковой запрос
+        :param remote:
+        :param salary:
+        :param type: Узнать, что это такое
+        :param with_salary:
+        :param qid: Квалификация специалиста. 1 - любая, 2 - intern, 3 - junior, 4 - middle, 5 - senior, 6 - lead
+        :param sort: сортировка
+        :param divisions: Сфера деятельности
+        """
+        self.page_number = page_number
+        self.divisions = divisions
+        self.sort = sort
+        self.qid = qid
+        self.with_salary = with_salary
+        self.type = type
+        self.salary = salary
+        self.remote = remote
+        self.question = question
+
+    def make_search_string_for_habr(self) -> str:
+        url = "https://career.habr.com/vacancies"
+        search_string_for_habr = url + f'?page={self.page_number}&q={self.question}&remote={self.remote}' \
+                                       f'&salary={self.salary}&type={self.type}&with_salary={self.with_salary}' \
+                                       f'&qid={self.qid}&divisions[]={self.divisions}&sort={self.sort}'
+        return search_string_for_habr
 
 
-def find_number_of_search_pages(pn=1, q=question, r=remote, s=salary_price, ws=with_salary, u=url, rt="all", level=qid):
-    """ Функция ищет количество страниц в поисковой выдаче с https://career.habr.com/vacancies
-    для того, чтобы знать точное количество страниц для парсинга
-    :param level:
-    :param s:
-    :param ws:
-    :param u: урл
-    :param pn: номер страницы с которой сдирается html код
-    :param q: любой поисковой запрос на сайте, для поиска вакансий
-    :param r: remote - можно работать удаленно? Если да, то пиши значение true
-    :param rt: я хз че это такое, постоянно стоит all
-    :return: Количество страниц с вакансиями, соответствующих запросу
-    """
-    print('Отправляю поисковой запрос на Хабр')
-    browser.get(u + f'?page={pn}&q={q}&remote={r}&salary={s}&type={rt}&with_salary={ws}&qid={level}')
-    print(f'Взял HTML код для парсинга со страницы {pn}')
-    required_html = browser.page_source
-    soup = BeautifulSoup(required_html, 'html5lib')
-    find_class = "search-total disable-font-boosting search-total--appearance-search-panel"
-    print(f'Ищу строку с количеством вакансий')
-    find_count_string = soup.find('div', class_=find_class).text
-    find_count_string = int(re.findall('\\d+', find_count_string)[0])
-    print(f'Твоему запросу соответстует {find_count_string} вакансий')
-    number_of_search_pages = math.ceil(int(find_count_string) / 25)
-    print(f'Это {number_of_search_pages} страниц надо спарсить, но не парься, я скоро все сделаю')
-    return number_of_search_pages
+class VacancyCard:
+    """карточка вакансии в поисковой выдаче habra"""
+    def __init__(self, vacancy_name: str, vacancy_link: str, company_name: str, company_link: str, logo_link: str,
+                 date_of_publication: str, salary: str, low_salary, high_salary, currency: str):
+        """
+        :param vacancy_name: Название вакансии
+        :param vacancy_link: Ссылка на страницу вакансии
+        :param company_name: Название компании
+        :param company_link: Ссылка на карточку компании
+        :param logo_link: Ссылка на логотип компании
+        :param date_of_publication: Дата публикации или обновления вакансии
+        :param salary: Зарплата
+        :param low_salary: Нижняя часть вилки
+        :param high_salary: Верхняя часть вилки
+        :param currency: валюта зарплаты
+        """
+        self.currency = currency
+        self.high_salary = high_salary
+        self.low_salary = low_salary
+        self.salary = salary
+        self.date_of_publication = date_of_publication
+        self.logo_link = logo_link
+        self.company_link = company_link
+        self.company_name = company_name
+        self.vacancy_link = vacancy_link
+        self.vacancy_name = vacancy_name
 
 
-def get_data_by_search_page(day_month_year, hour_minute_second, pn, q=question, r=remote, s=salary_price,
-                            ws=with_salary, u=url, t=request_type):
-    """ Функция сохраняет html код страницы и возвращает переменную soup в которой содержится html код страницы.
-    :param day_month_year:
-    :param hour_minute_second:
-    :param s: salary - зарплата
-    :param ws: with_salary - указана ли зарплата
-    :param u: урл
-    :param pn: номер страницы с которой сдирается html код
-    :param q: любой поисковой запрос на сайте, для поиска вакансий
-    :param r: можно ли работать удаленно? Если да, то пиши значение true
-    :param t: я хз че это такое, постоянно стоит all
-    :return: Количество страниц с вакансиями, соответствующих запросу
-    """
-    browser.get(u + f'?page={pn}&q={q}&remote={r}&salary={s}&type={t}&with_salary={ws}')
-    required_html = browser.page_source
-    soup = BeautifulSoup(required_html, 'html5lib')
-    html_name = f"html_{pn}_{day_month_year}_{hour_minute_second}.html"
-    html_file = open(f'scrapped_data/{day_month_year}/{html_name}', 'w')
-    html_file.write(f'{soup}')
-    return soup
+class HabrPage:
+    def __init__(self, soup: BeautifulSoup):
+        self.soup = soup
+
+    def find_number_of_vacancies(self) -> int:
+        find_count_string = self.soup.find(
+            'div', class_="search-total disable-font-boosting search-total--appearance-search-panel").text
+        number_of_vacancies = int(re.findall('\\d+', find_count_string)[0])
+        return number_of_vacancies
+
+    def number_of_search_pages(self) -> int:
+        number_of_vacancies = self.find_number_of_vacancies()
+        number_of_search_pages = math.ceil(number_of_vacancies / 25)
+        return number_of_search_pages
 
 
-def collecting_vacancies_data(day_month_year, hour_minute_second, number_of_search_pages, pn=page_number):
-    for item in range(1, number_of_search_pages + 1):
-        print(f'Парсим страницу выдачи с номером {pn}')
-        print('__________________________________________________')
-        soup = get_data_by_search_page(day_month_year=day_month_year, hour_minute_second=hour_minute_second,
-                                       pn=pn)
-        vacancy_card.extend(soup.find_all(class_='vacancy-card'))
-        print(len(vacancy_card))
-        print(f'закончил парсить страницу с номером = {pn}')
-        print('____________________________________________________')
-        pn = pn + 1
-    return vacancy_card
+class HabrClient:
+    def __init__(self, search_request_link: SearchRequestLink):
+        self.search_request_link = search_request_link
 
+    def get_page(self) -> HabrPage:
+        browser.get(f'{self.search_request_link.make_search_string_for_habr()}')
+        required_html = browser.page_source
+        soup = BeautifulSoup(required_html, 'html5lib')
+        return HabrPage(soup)
 
-def parse_vacancies_data(vacancy_cards):
-    for data in vacancy_cards:
-        vacancy_title = data.find('a', class_='vacancy-card__title-link').text
-        company_title = data.find('a', class_='link-comp link-comp--appearance-dark').text
-        company_link = host + data.find('a', class_='link-comp link-comp--appearance-dark').get('href')
-        title_link = host + data.find('a', class_='vacancy-card__title-link').get('href')
-        date = data.find('div', class_='vacancy-card__date').find('time', class_='basic-date').text.strip()
-        icon_link = data.find('a', class_='vacancy-card__icon-link').find('img', 'vacancy-card__icon').get('src')
-        salary = data.find('div', class_='basic-salary').text
-        low_salary = find_lower_salary_value(salary)
-        high_salary = find_high_salary_value(salary)
-        currency = find_salary_currency(salary)
-        # skills_all = []
-        # skills_max_value = 0
-        # skill_elements = data.find('div', class_='vacancy-card__skills').find_all('span', 'preserve-line')
-        # for skill_element in skill_elements:
-        #     skill_element = skill_element.find('a', class_='link-comp link-comp--appearance-dark').text
-        #     skills_all.append(skill_element)
-        #     if skills_max_value < len(skills_all):
-        #         skills_max_value = len(skill_element)
-        write_vacancies_2_csv_file(vacancy_title=vacancy_title, company_title=company_title, company_link=company_link,
-                                   title_link=title_link, date=date, icon_link=icon_link, low_salary=low_salary,
-                                   high_salary=high_salary, currency=currency)
-        write_vacancy_data_2_google_sheet(vacancy_title, company_title, company_link, title_link, date, icon_link,
-                                          low_salary, high_salary, currency)
+    def find_lower_salary_value(self, salary):
+        low_salary = ''
+        if re.search('от', salary):  # проверяем в зепке наличие слова "от "
+            first_split = re.split('от ', salary)  # чистим строку от слова "от "
+            if re.search('до', first_split[1]):  # проверяем в цене наличие слова "До ", если есть, то:
+                second_split = re.split(' до ', first_split[1])  # отрезаем слово "До "
+                if re.search('₽', second_split[1]):  # Если находим символ рубля, то:
+                    low_salary = second_split[0].replace(' ', '')  # убиваем пробелы
+                else:
+                    if re.search('\\$', second_split[1]):  # Если находим символ доллара, то:
+                        low_salary = second_split[0].replace(' ', '')  # убиваем пробелы
+                    else:
+                        if re.search('€', second_split[1]):  # Если находим символ евро, то:
+                            low_salary = second_split[0].replace(' ', '')  # убиваем пробелы
+                        else:
+                            print('Какой-то баг - не прошел проверку на рубли, евро и баксы')
+                            print('_____________________________________________')
+            else:
+                if re.search('₽', first_split[1]):
+                    low_salary = re.split(' ₽', first_split[1])[0].replace(' ', '')
+                else:
+                    if re.search('\\$', first_split[1]):
+                        low_salary = re.split(' \\$', first_split[1])[0].replace(' ', '')
+                    else:
+                        if re.search('€', first_split[1]):
+                            low_salary = re.split(' €', first_split[1])[0].replace(' ', '')
+                        else:
+                            print('Какой-то баг - не прошел проверку на рубли, евро и баксы')
+        else:
+            if re.search('До ', salary):
+                first_split = re.split('До ', salary)
+                if re.search('₽', first_split[1]):
+                    low_salary = 'не указано'
+                else:
+                    if re.search('\\$', first_split[1]):
+                        low_salary = 'не указано'
+                    else:
+                        if re.search('€', first_split[1]):
+                            low_salary = 'не указано'
+            else:
+                low_salary = 'нет указано'
+
+        return low_salary
+
+    def find_high_salary_value(self, salary):
+        high_salary = ''
+        if re.search('от', salary):  # проверяем в зепке наличие слова "от "
+            first_split = re.split('от ', salary)  # чистим строку от слова "от "
+            if re.search('до', first_split[1]):  # проверяем в цене наличие слова "До ", если есть, то:
+                second_split = re.split(' до ', first_split[1])  # отрезаем слово "До "
+                if re.search('₽', second_split[1]):  # Если находим символ рубля, то:
+                    high_salary = re.split(' ₽', second_split[1])[0].replace(' ', '')
+                else:
+                    if re.search('\\$', second_split[1]):  # Если находим символ рубля, то:
+                        high_salary = re.split(' \\$', second_split[1])[0].replace(' ', '')
+                    else:
+                        if re.search('€', second_split[1]):  # Если находим символ евро, то:
+                            high_salary = re.split(' €', second_split[1])[0].replace(' ', '')
+                        else:
+                            print('Какой-то баг - не прошел проверку на рубли, евро и баксы')
+                            print('_____________________________________________')
+            else:
+                if re.search('₽', first_split[1]):
+                    high_salary = 'не указано'
+                else:
+                    if re.search('\\$', first_split[1]):
+                        high_salary = 'не указано'
+                    else:
+                        if re.search('€', first_split[1]):
+                            high_salary = 'не указано'
+                        else:
+                            print('Какой-то баг - не прошел проверку на рубли, евро и баксы')
+        else:
+            if re.search('До ', salary):
+                first_split = re.split('До ', salary)
+                if re.search('₽', first_split[1]):
+                    high_salary = re.split(' ₽', first_split[1])[0].replace(' ', '')
+                else:
+                    if re.search('\\$', first_split[1]):
+                        high_salary = re.split(' \\$', first_split[1])[0].replace(' ', '')
+                    else:
+                        if re.search('€', first_split[1]):
+                            high_salary = re.split(' €', first_split[1])[0].replace(' ', '')
+            else:
+                high_salary = 'не указано'
+
+        return high_salary
+
+    def find_salary_currency(self, salary) -> str:
+        if re.search('₽', salary):
+            currency = 'rub'
+        else:
+            if re.search('\\$', salary):
+                currency = 'usd'
+            else:
+                if re.search('€', salary):
+                    currency = 'eur'
+                else:
+                    currency = 'не указано'
+        return currency
+
+    def collect_vacancy_cards_from_page(self) -> [VacancyCard]:
+        base_url: str = "https://career.habr.com"
+        vacancy_cards = self.get_page().soup.find_all(class_='vacancy-card')
+        vacancies_list = []
+        vacancies = []
+        for vacancy_card in vacancy_cards:
+            salary = vacancy_card.find('div', class_='basic-salary').text
+            vacancy = VacancyCard(
+                vacancy_name=vacancy_card.find('a', class_='vacancy-card__title-link').text,
+                company_name=vacancy_card.find('a', class_='link-comp link-comp--appearance-dark').text,
+                company_link=base_url + vacancy_card.find(
+                    'a', class_='link-comp link-comp--appearance-dark').get('href'),
+                vacancy_link=base_url + vacancy_card.find('a', class_='vacancy-card__title-link').get('href'),
+                date_of_publication=vacancy_card.find(
+                    'div', class_='vacancy-card__date').find('time', class_='basic-date').text.strip(),
+                logo_link=vacancy_card.find(
+                    'a', class_='vacancy-card__icon-link').find('img', 'vacancy-card__icon').get('src'),
+                salary=salary,
+                low_salary=self.find_lower_salary_value(salary),
+                high_salary=self.find_high_salary_value(salary),
+                currency=self.find_salary_currency(salary)
+                                )
+            vacancies.append(vacancy)
+            print(vacancy.vacancy_name)
+            vacancies_list.append(
+                {
+                    "Имя вакансии:": vacancy.vacancy_name,
+                    "Имя компании:": vacancy.company_name,
+                    "Ссылка на компанию:": vacancy.company_link,
+                    "Ссылка на вакансию:": vacancy.vacancy_link,
+                    "Дата публикации:": vacancy.date_of_publication,
+                    "Ссылка на логотип:": vacancy.logo_link,
+                    "Зепка": vacancy.salary,
+                    "Зепка от:": vacancy.low_salary,
+                    "Зепка до:": vacancy.high_salary,
+                    "Валюта:": vacancy.currency
+                }
+            )
+        with open("scrapped_data/parsed_vacancies.json", "a", encoding="utf-8") as file:
+            json.dump(vacancies_list, file, indent=4, ensure_ascii=False)
+        return vacancies
+
+    def collect_all_vacancy_cards_from_request(self) -> [VacancyCard]:
+        question = self.search_request_link.question
+        remote = self.search_request_link.remote
+        salary = self.search_request_link.salary
+        type = self.search_request_link.type
+        with_salary = self.search_request_link.with_salary
+        qid = self.search_request_link.qid
+        sort = self.search_request_link.sort
+        divisions = self.search_request_link.divisions
+        vacancies = []
+        for page in range(1, self.get_page().number_of_search_pages()):
+            search_request = SearchRequestLink(question=question,
+                                               remote=remote,
+                                               salary=salary,
+                                               type=type,
+                                               with_salary=with_salary,
+                                               qid=qid,
+                                               sort=sort,
+                                               divisions=divisions,
+                                               page_number=page)
+            habr_client = HabrClient(search_request_link=search_request)
+            collected_data = habr_client.collect_vacancy_cards_from_page()
+            vacancies.append(collected_data)
+        return vacancies
+

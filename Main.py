@@ -1,14 +1,26 @@
-from ParsePages import find_number_of_search_pages, collecting_vacancies_data, parse_vacancies_data
-from timevars import find_time
-from WorkWithCSV import make_csv_file, open_csv_file
+from ParsePages import HabrClient, SearchRequestLink
 
-dmy = find_time()[0]
-hms = find_time()[1]
-number_of_pages_found = find_number_of_search_pages()
+question = ""
+remote = "true"
+salary = "350000"
+type = "all"
+with_salary = "true"
+qid = ""
+sort = "salary_desc"
+divisions = ""
+page_number = 1
 
-make_csv_file()
-vacancy_cards = collecting_vacancies_data(day_month_year=dmy,
-                                          hour_minute_second=hms,
-                                          number_of_search_pages=number_of_pages_found)
-parse_vacancies_data(vacancy_cards=vacancy_cards)
-open_csv_file()
+search_request = SearchRequestLink(question=question,
+                                   remote=remote,
+                                   salary=salary,
+                                   type=type,
+                                   with_salary=with_salary,
+                                   qid=qid,
+                                   sort=sort,
+                                   divisions=divisions,
+                                   page_number=page_number)
+
+
+habr_client = HabrClient(search_request_link=search_request)
+all_vacansies = habr_client.collect_all_vacancy_cards_from_request()
+
