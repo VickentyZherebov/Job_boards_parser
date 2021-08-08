@@ -40,11 +40,12 @@ class SearchRequestLink:
         search_string_for_habr = url + f'?page={self.page_number}&q={self.question}&remote={self.remote}' \
                                        f'&salary={self.salary}&type={self.type}&with_salary={self.with_salary}' \
                                        f'&qid={self.qid}&divisions[]={self.divisions}&sort={self.sort}'
+        # print(search_string_for_habr)
         return search_string_for_habr
 
 
 class VacancyCard:
-    """карточка вакансии в поисковой выдаче habra"""
+    """карточка вакансии в поисковой выдаче habr career"""
     def __init__(self, vacancy_name: str, vacancy_link: str, company_name: str, company_link: str, logo_link: str,
                  date_of_publication: str, salary: str, low_salary, high_salary, currency: str):
         """
@@ -201,7 +202,6 @@ class HabrClient:
     def collect_vacancy_cards_from_page(self) -> [VacancyCard]:
         base_url: str = "https://career.habr.com"
         vacancy_cards = self.get_page().soup.find_all(class_='vacancy-card')
-        vacancies_list = []
         vacancies = []
         for vacancy_card in vacancy_cards:
             salary = vacancy_card.find('div', class_='basic-salary').text
@@ -221,23 +221,6 @@ class HabrClient:
                 currency=self.find_salary_currency(salary)
                                 )
             vacancies.append(vacancy)
-            print(vacancy.vacancy_name)
-            vacancies_list.append(
-                {
-                    "Имя вакансии:": vacancy.vacancy_name,
-                    "Имя компании:": vacancy.company_name,
-                    "Ссылка на компанию:": vacancy.company_link,
-                    "Ссылка на вакансию:": vacancy.vacancy_link,
-                    "Дата публикации:": vacancy.date_of_publication,
-                    "Ссылка на логотип:": vacancy.logo_link,
-                    "Зепка": vacancy.salary,
-                    "Зепка от:": vacancy.low_salary,
-                    "Зепка до:": vacancy.high_salary,
-                    "Валюта:": vacancy.currency
-                }
-            )
-        with open("scrapped_data/parsed_vacancies.json", "a", encoding="utf-8") as file:
-            json.dump(vacancies_list, file, indent=4, ensure_ascii=False)
         return vacancies
 
     def collect_all_vacancy_cards_from_request(self) -> [VacancyCard]:
@@ -250,7 +233,7 @@ class HabrClient:
         sort = self.search_request_link.sort
         divisions = self.search_request_link.divisions
         vacancies = []
-        for page in range(1, self.get_page().number_of_search_pages()):
+        for page in range(1, self.get_page().number_of_search_pages() + 1):
             search_request = SearchRequestLink(question=question,
                                                remote=remote,
                                                salary=salary,
@@ -265,3 +248,29 @@ class HabrClient:
             vacancies.append(collected_data)
         return vacancies
 
+    def make_json_from_search_request(self):
+        print(self.get_page().find_number_of_vacancies())
+        dict_vacancies_json = []
+        collect_all_vacancies = self.collect_all_vacancy_cards_from_request()
+        for page in range(1, len(collect_all_vacancies) + 1):
+            number_of_vacancies = len(collect_all_vacancies[page - 1])
+            print(number_of_vacancies)
+            for vacancy in range(1, number_of_vacancies + 1):
+                print(collect_all_vacancies[page - 1][vacancy - 1])
+                dict_vacancies_json.append(
+                    {
+                        "Имя вакансии:": collect_all_vacancies[page - 1][vacancy - 1].vacancy_name,
+                        "Имя компании:": collect_all_vacancies[page - 1][vacancy - 1].company_name,
+                        "Ссылка на компанию:": collect_all_vacancies[page - 1][vacancy - 1].company_link,
+                        "Ссылка на вакансию:": collect_all_vacancies[page - 1][vacancy - 1].vacancy_link,
+                        "Дата публикации:": collect_all_vacancies[page - 1][vacancy - 1].date_of_publication,
+                        "Ссылка на логотип:": collect_all_vacancies[page - 1][vacancy - 1].logo_link,
+                        "Зепка": collect_all_vacancies[page - 1][vacancy - 1].salary,
+                        "Зепка от:": collect_all_vacancies[page - 1][vacancy - 1].low_salary,
+                        "Зепка до:": collect_all_vacancies[page - 1][vacancy - 1].high_salary,
+                        "Валюта:": collect_all_vacancies[page - 1][vacancy - 1].currency
+                    }
+                )
+        with open("scrapped_data/parsed_vacancies.json", "a", encoding="utf-8") as file:
+            json.dump(dict_vacancies_json, file, indent=4, ensure_ascii=False)
+        browser.quit()
