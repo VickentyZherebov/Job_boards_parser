@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 import re
 import math
+
 # from GSheetsConnect import write_vacancy_data_2_google_sheet
 # from WorkWithCSV import write_vacancies_2_csv_file
 
@@ -46,6 +47,7 @@ class SearchRequestLink:
 
 class VacancyCard:
     """карточка вакансии в поисковой выдаче habr career"""
+
     def __init__(self, vacancy_name: str, vacancy_link: str, company_name: str, company_link: str, logo_link: str,
                  date_of_publication: str, salary: str, low_salary, high_salary, currency: str):
         """
@@ -113,8 +115,14 @@ class HabrClient:
                         if re.search('€', second_split[1]):  # Если находим символ евро, то:
                             low_salary = second_split[0].replace(' ', '')  # убиваем пробелы
                         else:
-                            print('Какой-то баг - не прошел проверку на рубли, евро и баксы')
-                            print('_____________________________________________')
+                            if re.search('₸', second_split[1]):  # Если находим символ евро, то:
+                                low_salary = second_split[0].replace(' ', '')  # убиваем пробелы
+                            else:
+                                if re.search('₴', second_split[1]):  # Если находим символ евро, то:
+                                    low_salary = second_split[0].replace(' ', '')  # убиваем пробелы
+                                else:
+                                    print(f'Какой-то баг - не прошел проверку на рубли, евро и баксы {salary}')
+                                    print('_____________________________________________')
             else:
                 if re.search('₽', first_split[1]):
                     low_salary = re.split(' ₽', first_split[1])[0].replace(' ', '')
@@ -125,20 +133,27 @@ class HabrClient:
                         if re.search('€', first_split[1]):
                             low_salary = re.split(' €', first_split[1])[0].replace(' ', '')
                         else:
-                            print('Какой-то баг - не прошел проверку на рубли, евро и баксы')
+                            if re.search('₸', first_split[1]):  # Если находим символ евро, то:
+                                low_salary = re.split(' ₸', first_split[1])[0].replace(' ', '')
+                            else:
+                                if re.search('₴', first_split[1]):  # Если находим символ евро, то:
+                                    low_salary = re.split(' ₴', first_split[1])[0].replace(' ', '')
+                                else:
+                                    print(f'Какой-то баг - не прошел проверку на рубли, евро и баксы {salary}')
         else:
-            if re.search('До ', salary):
-                first_split = re.split('До ', salary)
-                if re.search('₽', first_split[1]):
-                    low_salary = 'не указано'
-                else:
-                    if re.search('\\$', first_split[1]):
-                        low_salary = 'не указано'
-                    else:
-                        if re.search('€', first_split[1]):
-                            low_salary = 'не указано'
-            else:
-                low_salary = 'нет указано'
+            low_salary = 'не указано'
+            # if re.search('До ', salary):
+            #     first_split = re.split('До ', salary)
+            #     if re.search('₽', first_split[1]):
+            #         low_salary = 'не указано'
+            #     else:
+            #         if re.search('\\$', first_split[1]):
+            #             low_salary = 'не указано'
+            #         else:
+            #             if re.search('€', first_split[1]):
+            #                 low_salary = 'не указано'
+            # else:
+            #     low_salary = 'не указано'
 
         return low_salary
 
@@ -157,19 +172,26 @@ class HabrClient:
                         if re.search('€', second_split[1]):  # Если находим символ евро, то:
                             high_salary = re.split(' €', second_split[1])[0].replace(' ', '')
                         else:
-                            print('Какой-то баг - не прошел проверку на рубли, евро и баксы')
-                            print('_____________________________________________')
-            else:
-                if re.search('₽', first_split[1]):
-                    high_salary = 'не указано'
-                else:
-                    if re.search('\\$', first_split[1]):
-                        high_salary = 'не указано'
-                    else:
-                        if re.search('€', first_split[1]):
-                            high_salary = 'не указано'
-                        else:
-                            print('Какой-то баг - не прошел проверку на рубли, евро и баксы')
+                            if re.search('₸', second_split[1]):  # Если находим символ евро, то:
+                                high_salary = re.split(' ₸', second_split[1])[0].replace(' ', '')
+                            else:
+                                if re.search('₴', second_split[1]):  # Если находим символ евро, то:
+                                    high_salary = re.split(' ₴', second_split[1])[0].replace(' ', '')
+                                else:
+                                    print(f'Какой-то баг - не прошел проверку на рубли, евро и баксы {salary}')
+                                    print('_____________________________________________')
+        # else:
+        #     high_salary = 'не указано'
+        #     # if re.search('₽', first_split[1]):
+        #     #     high_salary = 'не указано'
+        #     # else:
+        #     #     if re.search('\\$', first_split[1]):
+        #     #         high_salary = 'не указано'
+        #     #     else:
+        #     #         if re.search('€', first_split[1]):
+        #     #             high_salary = 'не указано'
+        #     #         else:
+        #     #             print(f'Какой-то баг - не прошел проверку на рубли, евро и баксы {salary}')
         else:
             if re.search('До ', salary):
                 first_split = re.split('До ', salary)
@@ -181,6 +203,12 @@ class HabrClient:
                     else:
                         if re.search('€', first_split[1]):
                             high_salary = re.split(' €', first_split[1])[0].replace(' ', '')
+                        else:
+                            if re.search('₸', first_split[1]):
+                                high_salary = re.split(' ₸', first_split[1])[0].replace(' ', '')
+                            else:
+                                if re.search('₴', first_split[1]):
+                                    high_salary = re.split(' ₴', first_split[1])[0].replace(' ', '')
             else:
                 high_salary = 'не указано'
 
@@ -196,7 +224,13 @@ class HabrClient:
                 if re.search('€', salary):
                     currency = 'eur'
                 else:
-                    currency = 'не указано'
+                    if re.search('₸', salary):
+                        currency = 'kzt'
+                    else:
+                        if re.search('₴', salary):
+                            currency = 'uah'
+                        else:
+                            currency = 'не указано'
         return currency
 
     def collect_vacancy_cards_from_page(self) -> [VacancyCard]:
@@ -219,7 +253,7 @@ class HabrClient:
                 low_salary=self.find_lower_salary_value(salary),
                 high_salary=self.find_high_salary_value(salary),
                 currency=self.find_salary_currency(salary)
-                                )
+            )
             vacancies.append(vacancy)
         return vacancies
 

@@ -20,7 +20,9 @@ search_request = SearchRequestLink(question=question,
                                    sort=sort,
                                    divisions=divisions,
                                    page_number=page_number)
-
-print(datetime.datetime.now())
+start_date = datetime.datetime.now()
+print(start_date)
 make_json = HabrClient(search_request_link=search_request).make_json_from_search_request()
-print(datetime.datetime.now())
+finish_date = datetime.datetime.now()
+print(finish_date)
+print(f'затрачено времени - {finish_date - start_date}')
