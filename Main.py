@@ -3,7 +3,7 @@ import datetime
 
 question = ""
 remote = ""
-salary = ""
+salary = "450000"
 type = "all"
 with_salary = ""
 qid = ""
