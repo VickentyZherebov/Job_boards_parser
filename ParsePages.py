@@ -15,12 +15,12 @@ browser = webdriver.Chrome(chromedriver, options=options)
 
 
 class SearchRequestLink:
-    def __init__(self, question, remote, salary, type, with_salary, qid, sort, divisions, page_number: int):
+    def __init__(self, question, remote, salary, search_type, with_salary, qid, sort, divisions, page_number: int):
         """
         :param question: поисковой запрос
         :param remote:
         :param salary:
-        :param type: Узнать, что это такое
+        :param search_type: тип поиска - все вакансии или подходящие под твой профиль
         :param with_salary:
         :param qid: Квалификация специалиста. 1 - любая, 2 - intern, 3 - junior, 4 - middle, 5 - senior, 6 - lead
         :param sort: сортировка
@@ -31,7 +31,7 @@ class SearchRequestLink:
         self.sort = sort
         self.qid = qid
         self.with_salary = with_salary
-        self.type = type
+        self.search_type = search_type
         self.salary = salary
         self.remote = remote
         self.question = question
@@ -39,9 +39,8 @@ class SearchRequestLink:
     def make_search_string_for_habr(self) -> str:
         url = "https://career.habr.com/vacancies"
         search_string_for_habr = url + f'?page={self.page_number}&q={self.question}&remote={self.remote}' \
-                                       f'&salary={self.salary}&type={self.type}&with_salary={self.with_salary}' \
+                                       f'&salary={self.salary}&type={self.search_type}&with_salary={self.with_salary}' \
                                        f'&qid={self.qid}&divisions[]={self.divisions}&sort={self.sort}'
-        # print(search_string_for_habr)
         return search_string_for_habr
 
 
@@ -84,7 +83,7 @@ class HabrPage:
         number_of_vacancies = int(re.findall('\\d+', find_count_string)[0])
         return number_of_vacancies
 
-    def number_of_search_pages(self) -> int:
+    def find_number_of_search_pages(self) -> int:
         number_of_vacancies = self.find_number_of_vacancies()
         number_of_search_pages = math.ceil(number_of_vacancies / 25)
         return number_of_search_pages
@@ -99,6 +98,40 @@ class HabrClient:
         required_html = browser.page_source
         soup = BeautifulSoup(required_html, 'html5lib')
         return HabrPage(soup)
+
+    def get_data_from_all_pages(self) -> HabrPage:
+        url_list = self.make_urls_list()
+        soup = BeautifulSoup()
+        for url in range(1, len(url_list) + 1):
+            browser.get(f'{url_list[url - 1]}')
+            required_html = browser.page_source
+            soup.append(BeautifulSoup(required_html, 'html5lib'))
+        return HabrPage(soup)
+
+    def make_urls_list(self) -> []:
+        question = self.search_request_link.question
+        remote = self.search_request_link.remote
+        salary = self.search_request_link.salary
+        search_type = self.search_request_link.search_type
+        with_salary = self.search_request_link.with_salary
+        qid = self.search_request_link.qid
+        sort = self.search_request_link.sort
+        divisions = self.search_request_link.divisions
+        number_of_search_pages = self.get_page().find_number_of_search_pages()
+        urls_list = []
+        for page in range(1, number_of_search_pages + 1):
+            url = SearchRequestLink(question=question,
+                                    remote=remote,
+                                    salary=salary,
+                                    search_type=search_type,
+                                    with_salary=with_salary,
+                                    qid=qid,
+                                    sort=sort,
+                                    divisions=divisions,
+                                    page_number=page).make_search_string_for_habr()
+            urls_list.append(url)
+            print(url)
+        return urls_list
 
     def salary_parser(self, salary):
         if re.search("от", salary) and re.search("до", salary):
@@ -140,6 +173,30 @@ class HabrClient:
                                 currency = "не указано"
         return low_salary, high_salary, salary_symbol, currency
 
+    def collect_vacancy_cards_from_page_2(self) -> [VacancyCard]:
+        base_url: str = "https://career.habr.com"
+        vacancy_cards = self.get_data_from_all_pages().soup.find_all(class_='vacancy-card')
+        vacancies = []
+        for vacancy_card in vacancy_cards:
+            salary = vacancy_card.find('div', class_='basic-salary').text
+            vacancy = VacancyCard(
+                vacancy_name=vacancy_card.find('a', class_='vacancy-card__title-link').text,
+                company_name=vacancy_card.find('a', class_='link-comp link-comp--appearance-dark').text,
+                company_link=base_url + vacancy_card.find(
+                    'a', class_='link-comp link-comp--appearance-dark').get('href'),
+                vacancy_link=base_url + vacancy_card.find('a', class_='vacancy-card__title-link').get('href'),
+                date_of_publication=vacancy_card.find(
+                    'div', class_='vacancy-card__date').find('time', class_='basic-date').text.strip(),
+                logo_link=vacancy_card.find(
+                    'a', class_='vacancy-card__icon-link').find('img', 'vacancy-card__icon').get('src'),
+                salary=salary,
+                low_salary=self.salary_parser(salary)[0],
+                high_salary=self.salary_parser(salary)[1],
+                currency=self.salary_parser(salary)[3]
+            )
+            vacancies.append(vacancy)
+        return vacancies
+
     def collect_vacancy_cards_from_page(self) -> [VacancyCard]:
         base_url: str = "https://career.habr.com"
         vacancy_cards = self.get_page().soup.find_all(class_='vacancy-card')
@@ -168,17 +225,17 @@ class HabrClient:
         question = self.search_request_link.question
         remote = self.search_request_link.remote
         salary = self.search_request_link.salary
-        type = self.search_request_link.type
+        search_type = self.search_request_link.search_type
         with_salary = self.search_request_link.with_salary
         qid = self.search_request_link.qid
         sort = self.search_request_link.sort
         divisions = self.search_request_link.divisions
         vacancies = []
-        for page in range(1, self.get_page().number_of_search_pages() + 1):
+        for page in range(1, self.get_page().find_number_of_search_pages() + 1):
             search_request = SearchRequestLink(question=question,
                                                remote=remote,
                                                salary=salary,
-                                               type=type,
+                                               search_type=search_type,
                                                with_salary=with_salary,
                                                qid=qid,
                                                sort=sort,
@@ -206,9 +263,9 @@ class HabrClient:
                         "Ссылка на вакансию": collect_all_vacancies[page - 1][vacancy - 1].vacancy_link,
                         "Дата публикации": collect_all_vacancies[page - 1][vacancy - 1].date_of_publication,
                         "Ссылка на логотип": collect_all_vacancies[page - 1][vacancy - 1].logo_link,
-                        "Зепка": collect_all_vacancies[page - 1][vacancy - 1].salary,
-                        "Зепка от": collect_all_vacancies[page - 1][vacancy - 1].low_salary,
-                        "Зепка до": collect_all_vacancies[page - 1][vacancy - 1].high_salary,
+                        "Зарплата": collect_all_vacancies[page - 1][vacancy - 1].salary,
+                        "Зарплата от": collect_all_vacancies[page - 1][vacancy - 1].low_salary,
+                        "Зарплата до": collect_all_vacancies[page - 1][vacancy - 1].high_salary,
                         "Валюта": collect_all_vacancies[page - 1][vacancy - 1].currency
                     }
                 )
