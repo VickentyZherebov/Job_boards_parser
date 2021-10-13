@@ -15,12 +15,12 @@ browser = webdriver.Chrome(chromedriver, options=options)
 
 
 class SearchRequestLink:
-    def __init__(self, question, remote, salary, type, with_salary, qid, sort, divisions, page_number: int):
+    def __init__(self, question, remote, salary, search_type, with_salary, qid, sort, divisions, page_number: int):
         """
         :param question: поисковой запрос
         :param remote:
         :param salary:
-        :param type: Узнать, что это такое
+        :param search_type: Узнать, что это такое
         :param with_salary:
         :param qid: Квалификация специалиста. 1 - любая, 2 - intern, 3 - junior, 4 - middle, 5 - senior, 6 - lead
         :param sort: сортировка
@@ -31,7 +31,7 @@ class SearchRequestLink:
         self.sort = sort
         self.qid = qid
         self.with_salary = with_salary
-        self.type = type
+        self.search_type = search_type
         self.salary = salary
         self.remote = remote
         self.question = question
@@ -39,14 +39,16 @@ class SearchRequestLink:
     def make_search_string_for_habr(self) -> str:
         url = "https://career.habr.com/vacancies"
         search_string_for_habr = url + f'?page={self.page_number}&q={self.question}&remote={self.remote}' \
-                                       f'&salary={self.salary}&type={self.type}&with_salary={self.with_salary}' \
+                                       f'&salary={self.salary}&type={self.search_type}&with_salary={self.with_salary}' \
                                        f'&qid={self.qid}&divisions[]={self.divisions}&sort={self.sort}'
         # print(search_string_for_habr)
         return search_string_for_habr
 
 
 class VacancyCard:
-    """карточка вакансии в поисковой выдаче habr career"""
+    """
+    карточка вакансии в поисковой выдаче habr career
+    """
 
     def __init__(self, vacancy_name: str, vacancy_link: str, company_name: str, company_link: str, logo_link: str,
                  date_of_publication: str, salary: str, low_salary, high_salary, currency: str):
@@ -74,6 +76,39 @@ class VacancyCard:
         self.vacancy_name = vacancy_name
 
 
+class MiniCompanyCard:
+    """
+    Карточка компании, посмотреть можно по ссылке https://career.habr.com/companies
+    """
+
+    def __init__(self, logo_link: str, company_name: str, company_link: str, rating: float, about: str, location: str,
+                 size: str, vacancies_count: str, open_vacancies_link: str, skills: []):
+        """
+        Пока не очень пока понимаю зачем это. Похоже, что для документирования, чтобы тому кто наводит мышь на объект
+        класса было понятно что к чему и чем является, но описывать все параметры не вижу смысла - они и так очевидные
+        :param logo_link: Ссылка на логотип компании
+        :param company_name: Название компании
+        :param company_link: Ссылка на карточку компании на Хабре. Скорее всего буду использовать как ID
+        :param rating: Рейтинг компании
+        :param about: Текст о компании
+        :param location: Локация офиса
+        :param size: Размер компании
+        :param vacancies_count: Количество открытых вакансий на момент скачивания данных
+        :param open_vacancies_link: Ссылка на открытые вакансии
+        :param skills: Основные навыки в компании
+        """
+        self.size = size
+        self.location = location
+        self.vacancies_count = vacancies_count
+        self.open_vacancies_link = open_vacancies_link
+        self.skills = skills
+        self.about = about
+        self.rating = rating
+        self.company_link = company_link
+        self.company_name = company_name
+        self.logo_link = logo_link
+
+
 class HabrPage:
     def __init__(self, soup: BeautifulSoup):
         self.soup = soup
@@ -87,6 +122,17 @@ class HabrPage:
     def number_of_search_pages(self) -> int:
         number_of_vacancies = self.find_number_of_vacancies()
         number_of_search_pages = math.ceil(number_of_vacancies / 25)
+        return number_of_search_pages
+
+    def find_number_of_companies(self) -> int:
+        find_count_string = self.soup.find(
+            'div', class_="search-total disable-font-boosting search-total--appearance-search-panel").text
+        number_of_companies = int(re.findall('\\d+', find_count_string)[0])
+        return number_of_companies
+
+    def find_number_of_search_pages_for_companies(self) -> int:
+        number_of_companies = self.find_number_of_companies()
+        number_of_search_pages = math.ceil(number_of_companies / 25)
         return number_of_search_pages
 
 
@@ -168,7 +214,7 @@ class HabrClient:
         question = self.search_request_link.question
         remote = self.search_request_link.remote
         salary = self.search_request_link.salary
-        type = self.search_request_link.type
+        search_type = self.search_request_link.search_type
         with_salary = self.search_request_link.with_salary
         qid = self.search_request_link.qid
         sort = self.search_request_link.sort
@@ -178,7 +224,7 @@ class HabrClient:
             search_request = SearchRequestLink(question=question,
                                                remote=remote,
                                                salary=salary,
-                                               type=type,
+                                               search_type=search_type,
                                                with_salary=with_salary,
                                                qid=qid,
                                                sort=sort,
@@ -195,9 +241,7 @@ class HabrClient:
         collect_all_vacancies = self.collect_all_vacancy_cards_from_request()
         for page in range(1, len(collect_all_vacancies) + 1):
             number_of_vacancies = len(collect_all_vacancies[page - 1])
-            print(number_of_vacancies)
             for vacancy in range(1, number_of_vacancies + 1):
-                print(collect_all_vacancies[page - 1][vacancy - 1])
                 dict_vacancies_json.append(
                     {
                         "Имя вакансии": collect_all_vacancies[page - 1][vacancy - 1].vacancy_name,
@@ -206,12 +250,67 @@ class HabrClient:
                         "Ссылка на вакансию": collect_all_vacancies[page - 1][vacancy - 1].vacancy_link,
                         "Дата публикации": collect_all_vacancies[page - 1][vacancy - 1].date_of_publication,
                         "Ссылка на логотип": collect_all_vacancies[page - 1][vacancy - 1].logo_link,
-                        "Зепка": collect_all_vacancies[page - 1][vacancy - 1].salary,
-                        "Зепка от": collect_all_vacancies[page - 1][vacancy - 1].low_salary,
-                        "Зепка до": collect_all_vacancies[page - 1][vacancy - 1].high_salary,
+                        "Зарплата": collect_all_vacancies[page - 1][vacancy - 1].salary,
+                        "Зарплата от": collect_all_vacancies[page - 1][vacancy - 1].low_salary,
+                        "Зарплата до": collect_all_vacancies[page - 1][vacancy - 1].high_salary,
                         "Валюта": collect_all_vacancies[page - 1][vacancy - 1].currency
                     }
                 )
         with open("scrapped_data/parsed_vacancies.json", "a", encoding="utf-8") as file:
             json.dump(dict_vacancies_json, file, indent=4, ensure_ascii=False)
         browser.quit()
+
+
+class CompanyParser:
+    def __init__(self, with_vacancies: int):
+        """
+        :param with_vacancies: значение 1 (скачать компании с вакансиями) либо 2 (скачать все компании)
+        """
+        self.with_vacancies = with_vacancies
+
+    def get_page(self, page_number) -> HabrPage:
+        url = f"https://career.habr.com/companies?_=1634158279462&category_root_id=&city_id=&location=&page=" \
+              f"{page_number}&q=&skills_finder=&sz=&utf8=✓&with_vacancies=1"
+        browser.get(f'{url}')
+        required_html = browser.page_source
+        soup = BeautifulSoup(required_html, 'html5lib')
+        return HabrPage(soup)
+
+    def collect_company_cards_from_page(self, page_number) -> [MiniCompanyCard]:
+        base_url: str = "https://career.habr.com"
+        company_cards = self.get_page(page_number=page_number).soup.find_all(class_='companies-item')
+        companies = []
+        for company_card in company_cards:
+            company = MiniCompanyCard(
+                location=company_card.find('div', class_='location').text,
+                rating=1.0,
+                about=company_card.find('div', class_='about').text,
+                company_name=company_card.find('a', class_='title').text,
+                company_link=base_url + company_card.find('a', class_='title').get('href'),
+                logo_link=company_card.find('a', class_='logo').get('style'),
+                # Todo в выборке не всегда есть карточки компаний с открытыми вакансиями и на этом качалка ломается -
+                #  исправить
+                open_vacancies_link=base_url + company_card.find('div', class_='vacancies_count').find('a').get('href'),
+                vacancies_count=company_card.find('div', class_='vacancies_count').find('a').text,
+                size=company_card.find('div', class_='size').text,
+                skills=[]
+            )
+            companies.append(company)
+            # print("*****" * 10)
+            print("*******" * 5)
+            print(company.company_name)
+            # print(company.company_link)
+            # print(company.logo_link)
+            # print(company.size)
+            # print(company.about)
+            # print(company.location)
+            # print(company.open_vacancies_link)
+            # print(company.rating)
+            # print(company.skills)
+            # print(company.vacancies_count)
+        return companies
+
+    def collect_all_companies_with_vacancies(self) -> [MiniCompanyCard]:
+        for page in range(1, 48):
+            print(f'скачиваю страницу номер {page}')
+            self.collect_company_cards_from_page(page_number=page)
