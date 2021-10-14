@@ -281,36 +281,96 @@ class CompanyParser:
         company_cards = self.get_page(page_number=page_number).soup.find_all(class_='companies-item')
         companies = []
         for company_card in company_cards:
+            try:
+                location = company_card.find('div', class_='location').text
+            except AttributeError:
+                location = "N/A"
+            try:
+                rating = 1.0
+            except AttributeError:
+                rating = 1.0
+            try:
+                about = company_card.find('div', class_='about').text
+            except AttributeError:
+                about = 'N/A'
+            try:
+                company_name = company_card.find('a', class_='title').text
+            except AttributeError:
+                company_name = 'N/A'
+            try:
+                company_link = base_url + company_card.find('a', class_='title').get('href')
+            except AttributeError:
+                company_link = 'N/A'
+            try:
+                logo_link = company_card.find('a', class_='logo').get('style')
+                logo_link = re.split('url\\(\'', logo_link)[1].split('\');')[0]
+            except AttributeError:
+                logo_link = 'N/A'
+            try:
+                open_vacancies_link = base_url + \
+                                      company_card.find('div', class_='vacancies_count').find('a').get('href')
+            except AttributeError:
+                open_vacancies_link = 'N/A'
+            try:
+                vacancies_count = company_card.find('div', class_='vacancies_count').find('a').text
+            except AttributeError:
+                vacancies_count = 0
+            try:
+                size = company_card.find('div', class_='size').text
+            except AttributeError:
+                size = 'N/A'
             company = MiniCompanyCard(
-                location=company_card.find('div', class_='location').text,
-                rating=1.0,
-                about=company_card.find('div', class_='about').text,
-                company_name=company_card.find('a', class_='title').text,
-                company_link=base_url + company_card.find('a', class_='title').get('href'),
-                logo_link=company_card.find('a', class_='logo').get('style'),
-                # Todo в выборке не всегда есть карточки компаний с открытыми вакансиями и на этом качалка ломается -
-                #  исправить
-                open_vacancies_link=base_url + company_card.find('div', class_='vacancies_count').find('a').get('href'),
-                vacancies_count=company_card.find('div', class_='vacancies_count').find('a').text,
-                size=company_card.find('div', class_='size').text,
+                location=location,
+                rating=rating,
+                about=about,
+                company_name=company_name,
+                company_link=company_link,
+                logo_link=logo_link,
+                open_vacancies_link=open_vacancies_link,
+                vacancies_count=vacancies_count,
+                size=size,
                 skills=[]
             )
             companies.append(company)
-            # print("*****" * 10)
-            print("*******" * 5)
-            print(company.company_name)
+            # print("*******" * 5)
+            # print(company.company_name)
             # print(company.company_link)
             # print(company.logo_link)
             # print(company.size)
             # print(company.about)
-            # print(company.location)
-            # print(company.open_vacancies_link)
-            # print(company.rating)
-            # print(company.skills)
             # print(company.vacancies_count)
+            # print(company.open_vacancies_link)
+            # print(company.location)
+            # print(company.skills)
+            # print(company.rating)
+        print(len(companies))
         return companies
 
     def collect_all_companies_with_vacancies(self) -> [MiniCompanyCard]:
+        all_company_cards = []
         for page in range(1, 48):
             print(f'скачиваю страницу номер {page}')
-            self.collect_company_cards_from_page(page_number=page)
+            all_company_cards.extend(self.collect_company_cards_from_page(page_number=page))
+        print(len(all_company_cards))
+        for number in range(1, len(all_company_cards) + 1):
+            print(f'{number} - {all_company_cards[number - 1].company_name}')
+        dict_companies_json = []
+        for number in range(1, len(all_company_cards) + 1):
+            dict_companies_json.append(
+                {
+                    "Название компании": all_company_cards[number - 1].company_name,
+                    "Ссылка на компанию": all_company_cards[number - 1].company_link,
+                    "Локация": all_company_cards[number - 1].location,
+                    "Рейтинг": all_company_cards[number - 1].rating,
+                    "Ссылка на логотип": all_company_cards[number - 1].logo_link,
+                    "Навыки": all_company_cards[number - 1].skills,
+                    "Ссылка на открытые вакансии": all_company_cards[number - 1].open_vacancies_link,
+                    "Количество открытых вакансий": all_company_cards[number - 1].vacancies_count,
+                    "О компании": all_company_cards[number - 1].about,
+                    "Размер компании": all_company_cards[number - 1].size
+                }
+            )
+        with open("scrapped_data/parsed_companies.json", "a", encoding="utf-8") as file:
+            json.dump(dict_companies_json, file, indent=4, ensure_ascii=False)
+        return all_company_cards
+
