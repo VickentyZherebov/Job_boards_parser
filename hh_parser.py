@@ -1,12 +1,21 @@
 import requests
 import csv
-from bs4 import BeautifulSoup as bs
+from bs4 import BeautifulSoup
 
 headers = {'accept': '*/*',
-           'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36'}
-base_url = 'https://spb.hh.ru/search/vacancy?clusters=true&enable_snippets=true&salary=&st=searchVacancy&text=%D0%90%D0%B3%D1%80%D0%BE%D0%BF%D1%80%D0%BE%D0%BC%D1%8B%D1%88%D0%BB%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9&page=0'
+           'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                         'Chrome/78.0.3904.108 Safari/537.36'}
+base_url = 'https://spb.hh.ru/search/vacancy?' \
+           'clusters=true&' \
+           'enable_snippets=true&' \
+           'salary=&' \
+           'st=searchVacancy&' \
+           'text=Агропромышленный&' \
+           'page=0'
 
 
+# О чем эта функция:
+# 1. на входе принимает урл откуда будет происходить парсинг и заголовки для работы bs4
 def hh_parse(base_url, headers):
     jobs = []
     urls = []
@@ -16,27 +25,34 @@ def hh_parse(base_url, headers):
     request = session.get(base_url, headers=headers)
 
     if request.status_code == 200:
-        soup = bs(request.content, 'lxml')
+        soup = BeautifulSoup(request.content, 'lxml')
         try:
             pagination = soup.find_all('a', attrs={'data-qa': 'pager-page'})
             count = int(pagination[-1].text)
             for i in range(count):
-                url = f'https://spb.hh.ru/search/vacancy?clusters=true&enable_snippets=true&salary=&st=searchVacancy&text=%D0%90%D0%B3%D1%80%D0%BE%D0%BF%D1%80%D0%BE%D0%BC%D1%8B%D1%88%D0%BB%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9&page={i}'
+                url = f'https://spb.hh.ru/search/vacancy?' \
+                      f'clusters=true&' \
+                      f'enable_snippets=true&' \
+                      f'salary=&' \
+                      f'st=searchVacancy&' \
+                      f'text=Агропромышленный&' \
+                      f'page={i}'
+                print(url)
                 if url not in urls:
                     urls.append(url)
-
-        except:
-            pass
+        except Exception as e:
+            print(f'{e} Это что ещё такое?')
+    print(f'количество url = {len(urls)}')
 
     for url in urls:
         request = session.get(url, headers=headers)
-        soup = bs(request.content, 'lxml')
-
-
+        soup = BeautifulSoup(request.content, 'lxml')
+        print(soup)
         divs = soup.find_all('div', attrs={'data-qa': 'vacancy-serp__vacancy'})
         for div in divs:
             try:
                 title = div.find('a', attrs={'data-qa': 'vacancy-serp__vacancy-employer'}).text
+                print(title)
                 href = div.find('a', attrs={'data-qa': 'vacancy-serp__vacancy-employer'})['href']
                 href_vac = div.find('a', attrs={'data-qa': 'vacancy-serp__vacancy-title'})['href']
                 # try:
@@ -46,17 +62,14 @@ def hh_parse(base_url, headers):
                 #     print(name, tel)
                 # except:
                 #     pass
-                jobs.append({
-                    'title': title,
-                    'href': f'https://spb.hh.ru{href}',
-                    'href_vac': href_vac
-                })
-
-            except:
-                pass
-
-
-
+                jobs.extend(
+                    {'title': title,
+                     'href': f'https://spb.hh.ru{href}',
+                     'href_vac': href_vac
+                     })
+                print(title)
+            except Exception as e:
+                print(f'{e} Это что ещё такое?')
         print(len(jobs))
     else:
         print('Error or Done ' + str(request.status_code))
@@ -68,10 +81,7 @@ def hh_page_parse(jobs, headers):
     session = requests.Session()
     r_page = session.get(page_url, headers=headers)
     if r_page.status_code == 200:
-        soup = bs(r_page.content, 'lxml')
-
-
-
+        soup = BeautifulSoup(r_page.content, 'lxml')
 
 
 def file_writer(jobs):
@@ -81,8 +91,8 @@ def file_writer(jobs):
         for job in jobs:
             a_pen.writerow((job['title'], job['href'], job['href_vac']))
 
-# get data from each page
 
+# get data from each page
 jobs = hh_parse(base_url, headers)
 page_data = hh_page_parse(jobs, headers)
 file_writer(jobs)
