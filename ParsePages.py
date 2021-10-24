@@ -157,10 +157,10 @@ class HabrClient:
                 high_salary = "не указано"
                 salary_symbol = re.split('от ', salary)[1].replace(' ', '')[-1:]
             else:
-                if re.search("до", salary):
+                if re.search("До", salary):
                     low_salary = "не указано"
-                    high_salary = re.split('до', salary)[1].replace(' ', '')[:-1]
-                    salary_symbol = re.split('до', salary)[1].replace(' ', '')[-1:]
+                    high_salary = re.split('До', salary)[1].replace(' ', '')[:-1]
+                    salary_symbol = re.split('До', salary)[1].replace(' ', '')[-1:]
                 else:
                     low_salary = "не указано"
                     high_salary = "не указано"
