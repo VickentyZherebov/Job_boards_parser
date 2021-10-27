@@ -114,6 +114,11 @@ class HhClient:
             salary = vacancy_card.find_all('span', class_="bloko-header-section-3 bloko-header-section-3_lite")[1].text
             vac_url = vacancy_card.find('a', class_="bloko-link").get('href')
             vac_url = re.split("\\?", vac_url)[0]
+            # @todo выяснить, как убрать символ nnbsp. Вот кусок говнокода:
+            #   <div class="vacancy-serp-item__sidebar">
+            #   <span data-qa="vacancy-serp__vacancy-compensation"
+            #   class="bloko-header-section-3 bloko-header-section-3_lite">
+            #   от <!-- -->150 000<!-- --> <!-- -->руб.</span></div>
             vacancy = VacancyCardMini(
                 vacancy_title=vacancy_card.find('a', class_="bloko-link").text,
                 company_title=vacancy_card.find('a', class_="bloko-link bloko-link_secondary").text,
@@ -173,7 +178,8 @@ class HhClient:
             json.dump(dict_vacancies_json, file, indent=4, ensure_ascii=False)
         browser.quit()
 
-
+# @todo выяснить, как генерить поисковую строку с несколькими одинаковыми параметрами, но разным содержанием
+#   например такой параметр, как Ключевые слова (label)
 search_link = SearchRequestLink(clusters="true",
                                 enable_snippets="true",
                                 ored_clusters="true",
@@ -187,4 +193,5 @@ search_link = SearchRequestLink(clusters="true",
                                 label="not_from_agency")
 
 client = HhClient(search_request_link=search_link)
+# @todo выяснить почему тут ругается, что функция ничего не возвращает, а на мейне не ругается
 make_json = client.make_json_from_search_request()
