@@ -16,7 +16,25 @@ base_url = 'https://spb.hh.ru/search/vacancy?' \
 
 # О чем эта функция:
 # 1. на входе принимает урл откуда будет происходить парсинг и заголовки для работы bs4
-def hh_parse(base_url, headers):
+# f возвращает список jobs который должен в себе содержать название и две ссылки
+
+class VacancyCardMini:
+    def __init__(self, vacancy_title, vacancy_url, company_title, company_url):
+        """
+        Объект карточки вакансии, которая отображается в результатах поисковой выдачи HeadHunter
+        :param vacancy_title: Название вакансии
+        :param vacancy_url: Ссылка на вакансию
+        :param company_title: Название компании
+        :param company_url: Ссылка на компанию
+        """
+        self.vacancy_title = vacancy_title
+        self.vacancy_url = vacancy_url
+        self.company_title = company_title
+        self.company_url = company_url
+
+
+
+def hh_parse(base_url, headers) -> jobs:
     jobs = []
     urls = []
     pagination = []
