@@ -38,18 +38,22 @@ class SearchRequestLink:
 
     def make_search_string_for_habr(self) -> str:
         url = "https://career.habr.com/vacancies"
-        search_string_for_habr = url + f'?page={self.page_number}&q={self.question}&remote={self.remote}' \
-                                       f'&salary={self.salary}&type={self.search_type}&with_salary={self.with_salary}' \
-                                       f'&qid={self.qid}&divisions[]={self.divisions}&sort={self.sort}'
-        # print(search_string_for_habr)
+        search_string_for_habr = url + f'?page={self.page_number}&' \
+                                       f'q={self.question}&' \
+                                       f'remote={self.remote}&' \
+                                       f'salary={self.salary}&' \
+                                       f'type={self.search_type}&' \
+                                       f'with_salary={self.with_salary}&' \
+                                       f'qid={self.qid}&' \
+                                       f'divisions[]={self.divisions}&' \
+                                       f'sort={self.sort}'
         return search_string_for_habr
 
 
-class VacancyCard:
+class VacancyCardMini:
     """
     карточка вакансии в поисковой выдаче habr career
     """
-
     def __init__(self, vacancy_name: str, vacancy_link: str, company_name: str, company_link: str, logo_link: str,
                  date_of_publication: str, salary: str, low_salary, high_salary, currency: str):
         """
@@ -76,7 +80,7 @@ class VacancyCard:
         self.vacancy_name = vacancy_name
 
 
-class MiniCompanyCard:
+class CompanyCardMini:
     """
     Карточка компании, посмотреть можно по ссылке https://career.habr.com/companies
     """
@@ -186,13 +190,13 @@ class HabrClient:
                                 currency = "не указано"
         return low_salary, high_salary, salary_symbol, currency
 
-    def collect_vacancy_cards_from_page(self) -> [VacancyCard]:
+    def collect_vacancy_cards_from_page(self) -> [VacancyCardMini]:
         base_url: str = "https://career.habr.com"
         vacancy_cards = self.get_page().soup.find_all(class_='vacancy-card')
         vacancies = []
         for vacancy_card in vacancy_cards:
             salary = vacancy_card.find('div', class_='basic-salary').text
-            vacancy = VacancyCard(
+            vacancy = VacancyCardMini(
                 vacancy_name=vacancy_card.find('a', class_='vacancy-card__title-link').text,
                 company_name=vacancy_card.find('a', class_='link-comp link-comp--appearance-dark').text,
                 company_link=base_url + vacancy_card.find(
@@ -210,7 +214,7 @@ class HabrClient:
             vacancies.append(vacancy)
         return vacancies
 
-    def collect_all_vacancy_cards_from_request(self) -> [VacancyCard]:
+    def collect_all_vacancy_cards_from_request(self) -> [VacancyCardMini]:
         question = self.search_request_link.question
         remote = self.search_request_link.remote
         salary = self.search_request_link.salary
@@ -276,7 +280,7 @@ class CompanyParser:
         soup = BeautifulSoup(required_html, 'html5lib')
         return HabrPage(soup)
 
-    def collect_company_cards_from_page(self, page_number) -> [MiniCompanyCard]:
+    def collect_company_cards_from_page(self, page_number) -> [CompanyCardMini]:
         base_url: str = "https://career.habr.com"
         company_cards = self.get_page(page_number=page_number).soup.find_all(class_='companies-item')
         companies = []
@@ -319,7 +323,7 @@ class CompanyParser:
                 size = company_card.find('div', class_='size').text
             except AttributeError:
                 size = 'N/A'
-            company = MiniCompanyCard(
+            company = CompanyCardMini(
                 location=location,
                 rating=rating,
                 about=about,
@@ -346,7 +350,7 @@ class CompanyParser:
         print(len(companies))
         return companies
 
-    def collect_all_companies_with_vacancies(self) -> [MiniCompanyCard]:
+    def collect_all_companies_with_vacancies(self) -> [CompanyCardMini]:
         all_company_cards = []
         for page in range(1, 48):
             print(f'скачиваю страницу номер {page}')
@@ -373,4 +377,3 @@ class CompanyParser:
         with open("scrapped_data/parsed_companies.json", "a", encoding="utf-8") as file:
             json.dump(dict_companies_json, file, indent=4, ensure_ascii=False)
         return all_company_cards
-
