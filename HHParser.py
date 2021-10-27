@@ -1,7 +1,8 @@
 # import requests
+import json
 import re
 # import csv
-import math
+# import math
 from bs4 import BeautifulSoup
 from selenium import webdriver
 
@@ -10,21 +11,6 @@ options = webdriver.ChromeOptions()
 options.add_argument('headless')  # для открытия headless-браузера
 browser = webdriver.Chrome(chromedriver, options=options)
 
-# headers = {'accept': '*/*',
-#            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
-#                          'Chrome/78.0.3904.108 Safari/537.36'}
-# base_url = 'https://spb.hh.ru/search/vacancy?' \
-#            'clusters=true&' \
-#            'enable_snippets=true&' \
-#            'salary=&' \
-#            'st=searchVacancy&' \
-#            'text=Агропромышленный&' \
-#            'page=0'
-
-
-# О чем эта функция:
-# 1. на входе принимает урл откуда будет происходить парсинг и заголовки для работы bs4
-# f возвращает список jobs который должен в себе содержать название и две ссылки
 
 class VacancyCardMini:
     """
@@ -49,8 +35,11 @@ class SearchRequestLink:
     """
     Создает поисковую ссылку для скачивания результатов поиска вакансий на HeadHunter
     """
-    def __init__(self, search_field: str, clusters: str, enable_snippets: str, ored_clusters: str, schedule: str, text: str, order_by: str, salary: str, page: int):
+    def __init__(self, search_field: str, clusters: str, enable_snippets: str, ored_clusters: str, schedule: str,
+                 text: str, order_by: str, salary: str, page: int, only_with_salary: str, label):
         """
+        :param label: Можно указывать "label=not_from_agency"
+        :param only_with_salary: Показывать только вакансии с зарплатами. = true
         :param search_field: где искать - в вакансии, компании, везде
         :param clusters: ХЗ что такое, по дефолту стоит значение true
         :param enable_snippets: ХЗ что такое, по дефолту стоит значение true
@@ -61,6 +50,8 @@ class SearchRequestLink:
         :param salary: показывать вакансии с зарплатой от указанного значения, например "125000" - покажет соответствующие вакансии
         :param page: Номер поисковой страницы. Начинается как ни странно с 0 страницы. Это ВАЖНО учитывать.
         """
+        self.label = label
+        self.only_with_salary = only_with_salary
         self.search_field = search_field
         self.page = page
         self.salary = salary
@@ -83,8 +74,10 @@ class SearchRequestLink:
                                      f'order_by={self.order_by}&' \
                                      f'salary={self.salary}&' \
                                      f'schedule={self.schedule}&' \
-                                     f'page={self.page}' \
-                                     f'search_field={self.search_field}'
+                                     f'page={self.page}&' \
+                                     f'search_field={self.search_field}&' \
+                                     f'only_with_salary={self.only_with_salary}'
+        print(search_string_for_hh)
         return search_string_for_hh
 
 
@@ -98,9 +91,10 @@ class HhPage:
         return number_of_vacancies
 
     def number_of_search_pages(self) -> int:
-        number_of_vacancies = self.find_number_of_vacancies()
-        number_of_search_pages = math.ceil(number_of_vacancies / 50)
-        return number_of_search_pages
+        pagination = self.soup.find_all('a', attrs={'data-qa': 'pager-page'})
+        count = int(pagination[-1].text)
+        print(f'count of search pages = {count}')
+        return count
 
 
 class HhClient:
@@ -114,23 +108,70 @@ class HhClient:
         return HhPage(soup)
 
     def collect_vacancy_cards_from_page(self) -> [VacancyCardMini]:
-        base_url: str = "https://hh.ru"
         vacancy_cards = self.get_page().soup.find_all(class_="vacancy-serp-item")
         vacancies = []
         for vacancy_card in vacancy_cards:
-            salary = vacancy_card.find('span', class_="bloko-header-section-3 bloko-header-section-3_lite").text
+            salary = vacancy_card.find_all('span', class_="bloko-header-section-3 bloko-header-section-3_lite")[1].text
             vac_url = vacancy_card.find('a', class_="bloko-link").get('href')
             vac_url = re.split("\\?", vac_url)[0]
             vacancy = VacancyCardMini(
                 vacancy_title=vacancy_card.find('a', class_="bloko-link").text,
                 company_title=vacancy_card.find('a', class_="bloko-link bloko-link_secondary").text,
-                company_url=vacancy_card.find('a', class_="bloko-link bloko-link_secondary").get('href'),
+                company_url="https://hh.ru" + vacancy_card.find('a', class_="bloko-link bloko-link_secondary").get('href'),
                 vacancy_url=vac_url,
                 vacancy_compensation=salary
             )
             vacancies.append(vacancy)
             print(f'{vacancy.vacancy_title} - {vacancy.vacancy_url} - {vacancy.vacancy_compensation}')
         return vacancies
+
+    def collect_all_vacancy_cards_from_request(self) -> [VacancyCardMini]:
+        search_field = self.search_request_link.search_field
+        clusters = self.search_request_link.clusters
+        enable_snippets = self.search_request_link.enable_snippets
+        ored_clusters = self.search_request_link.ored_clusters
+        text = self.search_request_link.text
+        order_by = self.search_request_link.order_by
+        salary = self.search_request_link.salary
+        schedule = self.search_request_link.schedule
+        only_with_salary = self.search_request_link.only_with_salary
+        label = self.search_request_link.label
+        vacancies = []
+        for page in range(0, self.get_page().number_of_search_pages() + 1):
+            search_request = SearchRequestLink(search_field=search_field,
+                                               clusters=clusters,
+                                               enable_snippets=enable_snippets,
+                                               ored_clusters=ored_clusters,
+                                               text=text,
+                                               order_by=order_by,
+                                               salary=salary,
+                                               page=page,
+                                               schedule=schedule,
+                                               only_with_salary=only_with_salary,
+                                               label=label)
+            hh_client = HhClient(search_request_link=search_request)
+            collected_data = hh_client.collect_vacancy_cards_from_page()
+            vacancies.append(collected_data)
+        return vacancies
+
+    def make_json_from_search_request(self):
+        dict_vacancies_json = []
+        collect_all_vacancies = self.collect_all_vacancy_cards_from_request()
+        for page in range(1, len(collect_all_vacancies) + 1):
+            number_of_vacancies = len(collect_all_vacancies[page - 1])
+            for vacancy in range(1, number_of_vacancies + 1):
+                dict_vacancies_json.append(
+                    {
+                        "Имя вакансии": collect_all_vacancies[page - 1][vacancy - 1].vacancy_title,
+                        "Имя компании": collect_all_vacancies[page - 1][vacancy - 1].company_title,
+                        "Ссылка на компанию": collect_all_vacancies[page - 1][vacancy - 1].company_url,
+                        "Ссылка на вакансию": collect_all_vacancies[page - 1][vacancy - 1].vacancy_url,
+                        "Зарплата": collect_all_vacancies[page - 1][vacancy - 1].vacancy_compensation
+                    }
+                )
+        with open("scrapped_data/parsed_hh_vacancies.json", "a", encoding="utf-8") as file:
+            json.dump(dict_vacancies_json, file, indent=4, ensure_ascii=False)
+        browser.quit()
 
 
 search_link = SearchRequestLink(clusters="true",
@@ -139,92 +180,11 @@ search_link = SearchRequestLink(clusters="true",
                                 schedule="remote",
                                 text="IT-рекрутер",
                                 order_by="salary_desc",
-                                salary="",
+                                salary="140000",
                                 page=0,
-                                search_field="description")
+                                search_field="",
+                                only_with_salary="true",
+                                label="not_from_agency")
 
-print(search_link.make_search_string_for_hh())
-hh_client = HhClient(search_request_link=search_link)
-hh_client.collect_vacancy_cards_from_page()
-
-#
-# def hh_parse(base_url, headers):
-#     jobs = []
-#     urls = []
-#     pagination = []
-#     urls.append(base_url)
-#     session = requests.Session()
-#     request = session.get(base_url, headers=headers)
-#
-#     if request.status_code == 200:
-#         soup = BeautifulSoup(request.content, 'lxml')
-#         try:
-#             pagination = soup.find_all('a', attrs={'data-qa': 'pager-page'})
-#             count = int(pagination[-1].text)
-#             for i in range(count):
-#                 url = f'https://spb.hh.ru/search/vacancy?' \
-#                       f'clusters=true&' \
-#                       f'enable_snippets=true&' \
-#                       f'salary=&' \
-#                       f'st=searchVacancy&' \
-#                       f'text=Агропромышленный&' \
-#                       f'page={i}'
-#                 print(url)
-#                 if url not in urls:
-#                     urls.append(url)
-#         except Exception as e:
-#             print(f'{e} Это что ещё такое?')
-#     print(f'количество url = {len(urls)}')
-#
-#     for url in urls:
-#         request = session.get(url, headers=headers)
-#         soup = BeautifulSoup(request.content, 'lxml')
-#         print(soup)
-#         divs = soup.find_all('div', attrs={'data-qa': 'vacancy-serp__vacancy'})
-#         for div in divs:
-#             try:
-#                 title = div.find('a', attrs={'data-qa': 'vacancy-serp__vacancy-employer'}).text
-#                 print(title)
-#                 href = div.find('a', attrs={'data-qa': 'vacancy-serp__vacancy-employer'})['href']
-#                 href_vac = div.find('a', attrs={'data-qa': 'vacancy-serp__vacancy-title'})['href']
-#                 # try:
-#                 #     contact_datas = soup.find_all('div', {'class': 'vacancy-contacts vacancy-contacts_opened'})
-#                 #     name = contact_datas.find('p', attrs={'data-qa': 'vacancy-contacts__fio'}).text
-#                 #     tel = contact_datas.find('p', attrs={'data-qa': 'vacancy-contacts__phone'}).text
-#                 #     print(name, tel)
-#                 # except:
-#                 #     pass
-#                 jobs.extend(
-#                     {'title': title,
-#                      'href': f'https://spb.hh.ru{href}',
-#                      'href_vac': href_vac
-#                      })
-#                 print(title)
-#             except Exception as e:
-#                 print(f'{e} Это что ещё такое?')
-#         print(len(jobs))
-#     else:
-#         print('Error or Done ' + str(request.status_code))
-#     return jobs
-#
-#
-# def hh_page_parse(jobs, headers):
-#     page_url = jobs.__getitem__(href_vac)
-#     session = requests.Session()
-#     r_page = session.get(page_url, headers=headers)
-#     if r_page.status_code == 200:
-#         soup = BeautifulSoup(r_page.content, 'lxml')
-#
-#
-# def file_writer(jobs):
-#     with open('parsed_jobs.csv', 'w',  encoding='utf-8') as file:
-#         a_pen = csv.writer(file)
-#         a_pen.writerow(('Название компании', 'URL компании', 'Название вакансии'))
-#         for job in jobs:
-#             a_pen.writerow((job['title'], job['href'], job['href_vac']))
-#
-#
-# # get data from each page
-# jobs = hh_parse(base_url, headers)
-# page_data = hh_page_parse(jobs, headers)
-# file_writer(jobs)
+client = HhClient(search_request_link=search_link)
+make_json = client.make_json_from_search_request()
