@@ -40,7 +40,7 @@ class SearchRequestLink:
         """
         :param label: Можно указывать "label=not_from_agency"
         :param only_with_salary: Показывать только вакансии с зарплатами. = true
-        :param search_field: где искать - в вакансии, компании, везде
+        :param search_field: где искать - в названии вакансии ("name"), в описании вакансии (description), компании(company_name), везде
         :param clusters: ХЗ что такое, по дефолту стоит значение true
         :param enable_snippets: ХЗ что такое, по дефолту стоит значение true
         :param ored_clusters: ХЗ что такое, по дефолту стоит значение true
@@ -76,7 +76,8 @@ class SearchRequestLink:
                                      f'schedule={self.schedule}&' \
                                      f'page={self.page}&' \
                                      f'search_field={self.search_field}&' \
-                                     f'only_with_salary={self.only_with_salary}'
+                                     f'only_with_salary={self.only_with_salary}&' \
+                                     f'label={self.label}'
         print(search_string_for_hh)
         return search_string_for_hh
 
@@ -92,21 +93,21 @@ class Salary:
     def salary_parser(self):
         if re.search("от", self.salary):
             low_salary = re.split(' ', self.salary)[1]
-            low_salary = re.split("\\\u202f", low_salary)[0] + re.split("\\\u202f", low_salary)[1]
+            low_salary = re.split("\\u202f", low_salary)[0] + re.split("\\u202f", low_salary)[1]
             high_salary = "Не указано"
             salary_symbol = re.split(' ', self.salary)[2]
         else:
             if re.search("до", self.salary):
                 low_salary = "Не указано"
                 high_salary = re.split(' ', self.salary)[1]
-                high_salary = re.split("\\\u202f", high_salary)[0] + re.split("\\\u202f", high_salary)[1]
+                high_salary = re.split("\\u202f", high_salary)[0] + re.split("\\u202f", high_salary)[1]
                 salary_symbol = re.split(' ', self.salary)[2]
             else:
                 if re.search("–", self.salary):
                     low_salary = re.split(" ", self.salary)[0]
-                    low_salary = re.split("\\\u202f", low_salary)[0] + re.split("\\\u202f", low_salary)[1]
+                    low_salary = re.split("\\u202f", low_salary)[0] + re.split("\\u202f", low_salary)[1]
                     high_salary = re.split(" ", self.salary)[2]
-                    high_salary = re.split("\\\u202f", high_salary)[0] + re.split("\\\u202f", high_salary)[1]
+                    high_salary = re.split("\\u202f", high_salary)[0] + re.split("\\u202f", high_salary)[1]
                     salary_symbol = re.split(' ', self.salary)[3]
                 else:
                     low_salary = "не указано"
@@ -158,29 +159,48 @@ class HhClient:
         vacancy_cards = self.get_page().soup.find_all(class_="vacancy-serp-item")
         vacancies = []
         for vacancy_card in vacancy_cards:
-            salary = Salary(vacancy_card.find_all('span', class_="bloko-header-section-3 bloko-header-section-3_lite")[1].text).salary_parser()
-            # if re.search("\\\u202f", salary):
-            #     salary = re.split("\\\u202f", salary)[0] + " " + re.split("\\\u202f", salary)[1]
-            vac_url = vacancy_card.find('a', class_="bloko-link").get('href')
-            vac_url = re.split("\\?", vac_url)[0]
-            company_title = vacancy_card.find('a', class_="bloko-link bloko-link_secondary").text
-            if re.search("\\\xa0", company_title):
-                company_title = re.split("\\\xa0", company_title)[0] + " " + re.split("\\\xa0", company_title)[1]
-            # @todo выяснить, как убрать символ nnbsp. Вот кусок говнокода:
-            #   <div class="vacancy-serp-item__sidebar">
-            #   <span data-qa="vacancy-serp__vacancy-compensation"
-            #   class="bloko-header-section-3 bloko-header-section-3_lite">
-            #   от <!-- -->150 000<!-- --> <!-- -->руб.</span></div>
-            vacancy = VacancyCardMini(
-                vacancy_title=vacancy_card.find('a', class_="bloko-link").text,
-                company_title=company_title,
-                company_url="https://hh.ru" + vacancy_card.find('a', class_="bloko-link bloko-link_secondary").get('href'),
-                vacancy_url=vac_url,
-                vacancy_compensation_from=salary[0],
-                vacancy_compensation_to=salary[1],
-                vacancy_currency=salary[3]
-            )
-            vacancies.append(vacancy)
+            # условие ниже нужно для того, чтобы выявлять вакансии без зарплаты и корректно их обрабатывать
+            if len(vacancy_card.find_all('span', class_="bloko-header-section-3 bloko-header-section-3_lite")) > 1:
+                salary = Salary(vacancy_card.find_all('span', class_="bloko-header-section-3 bloko-header-section-3_lite")[1].text).salary_parser()
+                vac_url = vacancy_card.find('a', class_="bloko-link").get('href')
+                vac_url = re.split("\\?", vac_url)[0]
+                company_title = vacancy_card.find('a', class_="bloko-link bloko-link_secondary").text
+                if re.search("\\xa0", company_title):
+                    company_title = re.split("\\xa0", company_title)[0] + " " + re.split("\\xa0", company_title)[1]
+                # @todo выяснить, как убрать символ nnbsp. Вот кусок говнокода:
+                #   <div class="vacancy-serp-item__sidebar">
+                #   <span data-qa="vacancy-serp__vacancy-compensation"
+                #   class="bloko-header-section-3 bloko-header-section-3_lite">
+                #   от <!-- -->150 000<!-- --> <!-- -->руб.</span></div>
+                vacancy = VacancyCardMini(
+                    vacancy_title=vacancy_card.find('a', class_="bloko-link").text,
+                    company_title=company_title,
+                    company_url="https://hh.ru" + vacancy_card.find('a', class_="bloko-link bloko-link_secondary").get('href'),
+                    vacancy_url=vac_url,
+                    vacancy_compensation_from=salary[0],
+                    vacancy_compensation_to=salary[1],
+                    vacancy_currency=salary[3]
+                )
+                vacancies.append(vacancy)
+            else:
+                salary = ["Не указано", "Не указано", "Не указано", "Не указано"]
+                vac_url = vacancy_card.find('a', class_="bloko-link").get('href')
+                vac_url = re.split("\\?", vac_url)[0]
+                company_title = vacancy_card.find('a', class_="bloko-link bloko-link_secondary").text
+                if re.search("\\xa0", company_title):
+                    company_title = re.split("\\xa0", company_title)[0] + " " + re.split("\\xa0", company_title)[1]
+                vacancy = VacancyCardMini(
+                    vacancy_title=vacancy_card.find('a', class_="bloko-link").text,
+                    company_title=company_title,
+                    company_url="https://hh.ru" + vacancy_card.find('a', class_="bloko-link bloko-link_secondary").get(
+                        'href'),
+                    vacancy_url=vac_url,
+                    vacancy_compensation_from=salary[0],
+                    vacancy_compensation_to=salary[1],
+                    vacancy_currency=salary[3]
+                )
+                vacancies.append(vacancy)
+            print(f'{vacancy.vacancy_title}, {vacancy.vacancy_url}, {vacancy.company_title}')
         return vacancies
 
     def collect_all_vacancy_cards_from_request(self) -> [VacancyCardMini]:
@@ -195,7 +215,7 @@ class HhClient:
         only_with_salary = self.search_request_link.only_with_salary
         label = self.search_request_link.label
         vacancies = []
-        for page in range(0, self.get_page().number_of_search_pages() + 1):
+        for page in range(0, self.get_page().number_of_search_pages()):
             search_request = SearchRequestLink(search_field=search_field,
                                                clusters=clusters,
                                                enable_snippets=enable_snippets,
@@ -210,6 +230,7 @@ class HhClient:
             hh_client = HhClient(search_request_link=search_request)
             collected_data = hh_client.collect_vacancy_cards_from_page()
             vacancies.extend(collected_data)
+        print(len(vacancies))
         return vacancies
 
     def make_json_from_search_request(self):
@@ -227,7 +248,6 @@ class HhClient:
                     "Валюта": collect_all_vacancies[vacancy - 1].vacancy_currency
                 }
             )
-        print(dict_vacancies_json[0:20])
         with open(f"scrapped_data/parsed_hh_vacancies_{current_date}.json", "a", encoding="utf-8") as file:
             json.dump(dict_vacancies_json, file, indent=4, ensure_ascii=False)
         browser.quit()
@@ -241,10 +261,10 @@ search_link = SearchRequestLink(clusters="true",
                                 schedule="remote",
                                 text="IT-рекрутер",
                                 order_by="salary_desc",
-                                salary="150000",
+                                salary="",
                                 page=0,
-                                search_field="",
-                                only_with_salary="true",
+                                search_field="name",
+                                only_with_salary="",
                                 label="not_from_agency")
 now = datetime.now()
 current_date = f'{now.day}_{now.month}_{now.year}_{now.hour}_{now.minute}_{now.second}'
