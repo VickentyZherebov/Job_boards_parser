@@ -150,7 +150,7 @@ class HabrClient:
         soup = BeautifulSoup(required_html, 'html5lib')
         return HabrPage(soup)
 
-    def salary_parser(self, salary):
+    def salary_parser(self, salary: str) -> []:
         if re.search("от", salary) and re.search("до", salary):
             low_salary = re.split('от ', salary)[1].split(' до')[0].replace(' ', '')
             high_salary = re.split('от ', salary)[1].split(' до')[1].replace(' ', '')[:-1]
