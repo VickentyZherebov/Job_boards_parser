@@ -1,4 +1,4 @@
-from ParsePages import HabrClient, SearchRequestLink, CompanyParser
+from HabraParser import HabrClient, SearchRequestLink, CompanyParser
 import datetime
 
 question = ""

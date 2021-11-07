@@ -14,11 +14,41 @@ options.add_argument('headless')  # для открытия headless-брауз�
 browser = webdriver.Chrome(chromedriver, options=options)
 
 
+class VacancyCardMini:
+    """
+    карточка вакансии в поисковой выдаче habr career
+    """
+    def __init__(self, vacancy_name: str, vacancy_link: str, company_name: str, company_link: str, logo_link: str,
+                 date_of_publication: str, salary: str, low_salary, high_salary, currency: str):
+        """
+        :param vacancy_name: Название вакансии
+        :param vacancy_link: Ссылка на страницу вакансии
+        :param company_name: Название компании
+        :param company_link: Ссылка на карточку компании
+        :param logo_link: Ссылка на логотип компании
+        :param date_of_publication: Дата публикации или обновления вакансии
+        :param salary: Зарплата
+        :param low_salary: Нижняя часть вилки
+        :param high_salary: Верхняя часть вилки
+        :param currency: валюта зарплаты
+        """
+        self.currency = currency
+        self.high_salary = high_salary
+        self.low_salary = low_salary
+        self.salary = salary
+        self.date_of_publication = date_of_publication
+        self.logo_link = logo_link
+        self.company_link = company_link
+        self.company_name = company_name
+        self.vacancy_link = vacancy_link
+        self.vacancy_name = vacancy_name
+
+
 class SearchRequestLink:
-    def __init__(self, question, remote, salary, search_type, with_salary, qid, sort, divisions, page_number: int):
+    def __init__(self, question: str, remote: str, salary: int, search_type, with_salary, qid, sort, divisions, page_number: int):
         """
         :param question: поисковой запрос
-        :param remote:
+        :param remote: пиши true, если работа удаленная нужно, либо не пиши ничего
         :param salary:
         :param search_type: Узнать, что это такое
         :param with_salary:
@@ -48,36 +78,6 @@ class SearchRequestLink:
                                        f'divisions[]={self.divisions}&' \
                                        f'sort={self.sort}'
         return search_string_for_habr
-
-
-class VacancyCardMini:
-    """
-    карточка вакансии в поисковой выдаче habr career
-    """
-    def __init__(self, vacancy_name: str, vacancy_link: str, company_name: str, company_link: str, logo_link: str,
-                 date_of_publication: str, salary: str, low_salary, high_salary, currency: str):
-        """
-        :param vacancy_name: Название вакансии
-        :param vacancy_link: Ссылка на страницу вакансии
-        :param company_name: Название компании
-        :param company_link: Ссылка на карточку компании
-        :param logo_link: Ссылка на логотип компании
-        :param date_of_publication: Дата публикации или обновления вакансии
-        :param salary: Зарплата
-        :param low_salary: Нижняя часть вилки
-        :param high_salary: Верхняя часть вилки
-        :param currency: валюта зарплаты
-        """
-        self.currency = currency
-        self.high_salary = high_salary
-        self.low_salary = low_salary
-        self.salary = salary
-        self.date_of_publication = date_of_publication
-        self.logo_link = logo_link
-        self.company_link = company_link
-        self.company_name = company_name
-        self.vacancy_link = vacancy_link
-        self.vacancy_name = vacancy_name
 
 
 class CompanyCardMini:
