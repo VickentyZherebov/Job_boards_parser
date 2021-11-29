@@ -94,6 +94,15 @@ class SearchRequestLink:
         print(search_string_for_hh)
         return search_string_for_hh
 
+    def make_special_search_string_for_hh(self) -> str:
+        """
+        :return:  Метод возвращает итоговую ссылку
+        """
+        url = "https://cyprus.hh.ru/vacancies/programmist?"
+        search_string_for_hh = url + f'page={self.page}'
+        print(search_string_for_hh)
+        return search_string_for_hh
+
 
 class Salary:
     """
@@ -153,7 +162,7 @@ class HhPage:
 
     def number_of_search_pages(self) -> int:
         pagination = self.soup.find_all('a', attrs={'data-qa': 'pager-page'})
-        count = int(pagination[-1].text)
+        count = int(pagination[-1].text) + 1
         print(f'count of search pages = {count}')
         return count
 
@@ -163,7 +172,7 @@ class HhClient:
         self.search_request_link = search_request_link
 
     def get_page(self) -> HhPage:
-        browser.get(f'{self.search_request_link.make_search_string_for_hh()}')
+        browser.get(f'{self.search_request_link.make_special_search_string_for_hh()}')
         required_html = browser.page_source
         soup = BeautifulSoup(required_html, 'html5lib')
         return HhPage(soup)
@@ -228,7 +237,8 @@ class HhClient:
         only_with_salary = self.search_request_link.only_with_salary
         label = self.search_request_link.label
         vacancies = []
-        for page in range(0, self.get_page().number_of_search_pages()):
+        for page in range(0, self.get_page().number_of_search_pages() + 1):
+            print(page)
             search_request = SearchRequestLink(search_field=search_field,
                                                clusters=clusters,
                                                enable_snippets=enable_snippets,
@@ -264,6 +274,7 @@ class HhClient:
         with open(f"scrapped_data/parsed_hh_vacancies_{current_date}.json", "a", encoding="utf-8") as file:
             json.dump(dict_vacancies_json, file, indent=4, ensure_ascii=False)
         browser.quit()
+        return dict_vacancies_json
 
 
 # @todo придумать, как генерить поисковую строку с несколькими одинаковыми параметрами, но разным содержанием
@@ -275,12 +286,11 @@ search_link = SearchRequestLink(clusters="true",
                                 text="IT-рекрутер",
                                 order_by="salary_desc",
                                 salary="",
-                                page=0,
+                                page=2,
                                 search_field="name",
                                 only_with_salary="",
                                 label="not_from_agency")
 now = datetime.now()
 current_date = f'{now.day}_{now.month}_{now.year}_{now.hour}_{now.minute}_{now.second}'
 client = HhClient(search_request_link=search_link)
-# @todo выяснить почему тут ругается, что функция ничего не возвращает, а на мейне не ругается
 make_json = client.make_json_from_search_request()
