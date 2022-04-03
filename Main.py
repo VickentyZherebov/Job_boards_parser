@@ -1,14 +1,15 @@
 from HabraParser import HabrClient, VacancySearchRequest, CompanyParser
 import datetime
 
-question = ""
+question = "ios"
 remote = ""
-salary = "350000"
+salary = ""
 search_type = "all"
 with_salary = ""
 qid = ""
 sort = "salary_desc"
 divisions = ""
+skills = ""
 page_number = 1
 
 search_request = VacancySearchRequest(question=question,
@@ -19,9 +20,9 @@ search_request = VacancySearchRequest(question=question,
                                       qid=qid,
                                       sort=sort,
                                       divisions=divisions,
-                                      page_number=page_number)
+                                      skills=skills)
 start_date = datetime.datetime.now()
-# make_json = HabrClient(search_request_link=search_request).make_json_from_search_request()
-parse_pages = CompanyParser(with_vacancies="").collect_all_companies_with_vacancies()
+make_json = HabrClient(search_request_link=search_request).make_json_from_search_request()
+# parse_pages = CompanyParser(with_vacancies="").collect_all_companies_with_vacancies()
 finish_date = datetime.datetime.now()
 print(f'затрачено времени - {finish_date - start_date}')

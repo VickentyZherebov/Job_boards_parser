@@ -1,16 +1,15 @@
 import sqlite3
 from sqlite3 import Connection
 
+connection = sqlite3.connect(r'//SavedData/SQLite3DataBase/HabrData.db')
+cursor = connection.cursor()
+
 
 def create_db() -> Connection:
-    connection = sqlite3.connect('vacancies.db')
-    cursor = connection.cursor()
-
-    cursor.execute("""CREATE TABLE IF NOT EXISTS vacancies(
-        currency TEXT,                   
-        high_salary TEXT,                   
-        low_salary TEXT,                   
-        salary TEXT,                   
+    cursor.execute("""CREATE TABLE IF NOT EXISTS kotlin_vacancies(                 
+        low_salary INTEGER,       
+        high_salary INTEGER,             
+        currency TEXT,           
         date_of_publication TEXT,
         logo_link TEXT,                   
         company_link TEXT,                   
@@ -19,7 +18,7 @@ def create_db() -> Connection:
         vacancy_name TEXT,
         FOREIGN KEY (company_link) REFERENCES companies (company_link))""")
 
-    cursor.execute("""CREATE TABLE IF NOT EXISTS companies(
+    cursor.execute("""CREATE TABLE IF NOT EXISTS ios_companies(
         size TEXT,
         location TEXT,
         vacancies_count TEXT,

@@ -3,7 +3,7 @@ from xlsxwriter.workbook import Workbook
 workbook = Workbook('MentalGrowth.xlsx')
 worksheet = workbook.add_worksheet()
 
-conn = sqlite3.connect('companies.db')
+conn = sqlite3.connect('SQLite3DB/companies.db')
 c = conn.cursor()
 c.execute("select * from companies where company_name == 'MentalGrowth'")
 rows = c.fetchall()
